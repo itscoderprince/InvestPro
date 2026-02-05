@@ -1,0 +1,113 @@
+investment-platform/
+├── public/
+│   ├── uploads/          # KYC documents
+│   └── images/
+├── src/
+│   ├── app/
+│   │   ├── (auth)/
+│   │   │   ├── login/
+│   │   │   │   └── page.js
+│   │   │   ├── register/
+│   │   │   │   └── page.js
+│   │   │   └── layout.js
+│   │   ├── (user)/
+│   │   │   ├── dashboard/
+│   │   │   │   └── page.js
+│   │   │   ├── kyc/
+│   │   │   │   └── page.js
+│   │   │   ├── invest/
+│   │   │   │   └── page.js
+│   │   │   ├── withdraw/
+│   │   │   │   └── page.js
+│   │   │   ├── support/
+│   │   │   │   └── page.js
+│   │   │   └── layout.js
+│   │   ├── admin/
+│   │   │   ├── dashboard/
+│   │   │   │   └── page.js
+│   │   │   ├── users/
+│   │   │   │   └── page.js
+│   │   │   ├── kyc/
+│   │   │   │   └── page.js
+│   │   │   ├── payments/
+│   │   │   │   └── page.js
+│   │   │   ├── withdrawals/
+│   │   │   │   └── page.js
+│   │   │   ├── tickets/
+│   │   │   │   └── page.js
+│   │   │   ├── indices/
+│   │   │   │   └── page.js
+│   │   │   └── layout.js
+│   │   ├── api/
+│   │   │   ├── auth/
+│   │   │   │   ├── register/route.js
+│   │   │   │   ├── login/route.js
+│   │   │   │   └── me/route.js
+│   │   │   ├── kyc/
+│   │   │   │   ├── upload/route.js
+│   │   │   │   └── status/route.js
+│   │   │   ├── investment/
+│   │   │   │   ├── create/route.js
+│   │   │   │   ├── list/route.js
+│   │   │   │   └── history/route.js
+│   │   │   ├── payment/
+│   │   │   │   ├── request/route.js
+│   │   │   │   └── list/route.js
+│   │   │   ├── withdrawal/
+│   │   │   │   ├── request/route.js
+│   │   │   │   └── list/route.js
+│   │   │   ├── ticket/
+│   │   │   │   ├── create/route.js
+│   │   │   │   └── list/route.js
+│   │   │   ├── admin/
+│   │   │   │   ├── users/route.js
+│   │   │   │   ├── kyc/[id]/route.js
+│   │   │   │   ├── payments/[id]/route.js
+│   │   │   │   ├── withdrawals/[id]/route.js
+│   │   │   │   ├── tickets/[id]/route.js
+│   │   │   │   ├── indices/route.js
+│   │   │   │   └── returns/route.js
+│   │   │   └── indices/route.js
+│   │   ├── layout.js
+│   │   └── page.js
+│   ├── components/
+│   │   ├── ui/              # Shadcn components
+│   │   ├── auth/
+│   │   │   ├── LoginForm.js
+│   │   │   └── RegisterForm.js
+│   │   ├── user/
+│   │   │   ├── DashboardCards.js
+│   │   │   ├── KYCUpload.js
+│   │   │   ├── IndexCard.js
+│   │   │   ├── WithdrawForm.js
+│   │   │   └── TicketForm.js
+│   │   ├── admin/
+│   │   │   ├── UserTable.js
+│   │   │   ├── KYCReview.js
+│   │   │   ├── PaymentTable.js
+│   │   │   ├── WithdrawalTable.js
+│   │   │   ├── TicketTable.js
+│   │   │   └── IndexManager.js
+│   │   └── shared/
+│   │       ├── Navbar.js
+│   │       └── Sidebar.js
+│   ├── lib/
+│   │   ├── db.js           # MongoDB connection
+│   │   ├── auth.js         # JWT utilities
+│   │   └── utils.js
+│   ├── models/
+│   │   ├── User.js
+│   │   ├── KYC.js
+│   │   ├── Index.js
+│   │   ├── Investment.js
+│   │   ├── PaymentRequest.js
+│   │   ├── Withdrawal.js
+│   │   └── Ticket.js
+│   ├── store/
+│   │   └── useStore.js     # Zustand store
+│   └── middleware.js
+├── .env.local
+├── .gitignore
+├── next.config.js
+├── package.json
+└── tailwind.config.js
