@@ -1,6 +1,9 @@
 import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "sonner";
+import InitialAuth from "@/components/InitialAuth";
 
+// Root layout for the application
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
@@ -22,6 +25,8 @@ export default function RootLayout({ children }) {
       <body
         className={`${inter.variable} ${playfair.variable} font-sans antialiased bg-white text-slate-900`}
       >
+        <InitialAuth />
+        <Toaster position="top-right" richColors closeButton />
         {children}
       </body>
     </html>

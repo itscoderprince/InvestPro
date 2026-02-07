@@ -11,7 +11,6 @@ import {
     ArrowUpRight,
     ArrowDownRight,
     AlertTriangle,
-    Info,
     ChevronRight,
     ExternalLink,
     Clock,
@@ -19,6 +18,7 @@ import {
     Zap,
     Home,
     LayoutDashboard,
+    Loader2,
 } from "lucide-react";
 
 import {
@@ -47,8 +47,10 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useDashboard } from "@/hooks/useApi";
+import { useAuthStore } from "@/store/authStore";
 
-// Stats Card Component using shadcn/ui
+// Stats Card Component
 function StatsCard({ icon: Icon, iconColor, title, amount, subtext, trend, trendUp }) {
     const textColor = iconColor.replace('bg-', 'text-');
     const tintColor = iconColor.replace('bg-', 'bg-').replace('-600', '-50');
@@ -84,6 +86,16 @@ function StatsCard({ icon: Icon, iconColor, title, amount, subtext, trend, trend
 
 // Simple Bar Chart Component
 function ReturnsChart({ data }) {
+    if (!data || data.length === 0) {
+        return (
+            <Card className="border-none shadow-sm h-full">
+                <CardContent className="flex items-center justify-center h-48">
+                    <p className="text-gray-400 text-sm">No returns data yet</p>
+                </CardContent>
+            </Card>
+        );
+    }
+
     const maxValue = Math.max(...data.map((d) => d.value));
 
     return (
@@ -127,58 +139,82 @@ function ReturnsChart({ data }) {
 }
 
 export default function DashboardPage() {
-    const [mounted, setMounted] = useState(false);
-    const [showKycAlert] = useState(true);
+    const { user, kycStatus } = useAuthStore();
+    const { data: dashboardData, loading, error } = useDashboard();
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+    if (loading) {
+        return (
+            <div className="min-h-[400px] flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="min-h-[400px] flex items-center justify-center">
+                <div className="text-center">
+                    <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                    <p className="text-gray-600">Failed to load dashboard</p>
+                    <p className="text-sm text-gray-400">{error}</p>
+                </div>
+            </div>
+        );
+    }
+
+    const summary = dashboardData?.summary || {};
+    const pendingItems = dashboardData?.pendingItems || {};
+    const recentInvestments = dashboardData?.recentInvestments || [];
 
     const stats = [
         {
             icon: Wallet,
             iconColor: "bg-blue-600",
             title: "Total Invested",
-            amount: "₹50,000",
-            subtext: "Across 3 active indices",
-            trend: "+12%",
+            amount: `₹${(summary.totalInvested || 0).toLocaleString()}`,
+            subtext: `Across ${summary.activeInvestmentsCount || 0} active investments`,
+            trend: summary.totalInvested > 0 ? "+12%" : null,
             trendUp: true,
         },
         {
             icon: TrendingUp,
             iconColor: "bg-green-600",
-            title: "Net Returns",
-            amount: "₹3,500",
-            subtext: "+7% growth this month",
-            trend: "+4.2%",
+            title: "Total Returns",
+            amount: `₹${(summary.totalReturns || 0).toLocaleString()}`,
+            subtext: `${((summary.totalReturns / (summary.totalInvested || 1)) * 100).toFixed(1)}% overall ROI`,
+            trend: summary.totalReturns > 0 ? `+${((summary.totalReturns / (summary.totalInvested || 1)) * 100).toFixed(1)}%` : null,
             trendUp: true,
         },
         {
             icon: Coins,
             iconColor: "bg-purple-600",
             title: "Wallet Balance",
-            amount: "₹2,800",
+            amount: `₹${(summary.walletBalance || 0).toLocaleString()}`,
             subtext: "Available for withdrawal",
             trend: null,
         },
         {
             icon: Activity,
             iconColor: "bg-orange-600",
-            title: "Performance",
-            amount: "14.2%",
-            subtext: "Avg. weekly ROI",
-            trend: "+0.8%",
-            trendUp: true,
+            title: "Active Investments",
+            amount: summary.activeInvestmentsCount || 0,
+            subtext: `₹${(summary.currentValue || 0).toLocaleString()} current value`,
+            trend: null,
         },
     ];
 
-    const investments = [
-        { id: 1, name: "Nifty 50 Index", amount: "₹20,000", weeklyReturn: "₹400", totalEarned: "₹1,600", status: "Active", risk: "Low" },
-        { id: 2, name: "Bank Nifty", amount: "₹15,000", weeklyReturn: "₹375", totalEarned: "₹1,125", status: "Active", risk: "Medium" },
-        { id: 3, name: "Sensex Plus", amount: "₹15,000", weeklyReturn: "₹300", totalEarned: "₹775", status: "Active", risk: "Medium" },
-        { id: 4, name: "Gold Fund", amount: "—", weeklyReturn: "—", totalEarned: "—", status: "Pending", risk: "Low" },
-    ];
+    // Transform recent investments for display
+    const investments = recentInvestments.map(inv => ({
+        id: inv._id,
+        name: inv.index?.name || 'Unknown Index',
+        amount: `₹${(inv.amount || 0).toLocaleString()}`,
+        weeklyReturn: `₹${(inv.lastWeekReturn || 0).toLocaleString()}`,
+        totalEarned: `₹${(inv.totalReturns || 0).toLocaleString()}`,
+        status: inv.status === 'active' ? 'Active' : inv.status === 'pending' ? 'Pending' : 'Completed',
+        risk: inv.index?.riskLevel || 'medium',
+    }));
 
+    // Mock chart data - in production, this would come from returns history
     const chartData = [
         { week: "W1", value: 320 },
         { week: "W2", value: 450 },
@@ -190,12 +226,11 @@ export default function DashboardPage() {
         { week: "W8", value: 700 },
     ];
 
-    if (!mounted) return null;
+    const showKycAlert = kycStatus !== 'approved';
 
     return (
         <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto pt-0 pb-2 md:pb-4 px-2 md:px-1">
             {/* Header with Quick Actions */}
-            {/* Compact Breadcrumb Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <Breadcrumb>
                     <BreadcrumbList>
@@ -230,7 +265,7 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Alerts */}
+            {/* KYC Alert */}
             {showKycAlert && (
                 <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
@@ -238,13 +273,41 @@ export default function DashboardPage() {
                             <AlertTriangle className="w-4 h-4 text-yellow-600" />
                         </div>
                         <div>
-                            <p className="text-sm font-bold text-yellow-800 tracking-tight">KYC Verification Required</p>
-                            <p className="text-[11px] text-yellow-700/80">Submit your documents to unlock full withdrawal limits.</p>
+                            <p className="text-sm font-bold text-yellow-800 tracking-tight">
+                                {kycStatus === 'pending' ? 'KYC Under Review' : kycStatus === 'rejected' ? 'KYC Rejected' : 'KYC Verification Required'}
+                            </p>
+                            <p className="text-[11px] text-yellow-700/80">
+                                {kycStatus === 'pending'
+                                    ? 'Your documents are being reviewed. This usually takes 24-48 hours.'
+                                    : kycStatus === 'rejected'
+                                        ? 'Please resubmit your documents with correct information.'
+                                        : 'Submit your documents to unlock full withdrawal limits.'}
+                            </p>
                         </div>
                     </div>
-                    <Button asChild variant="ghost" size="sm" className="text-yellow-800 hover:bg-yellow-100 font-bold text-xs shrink-0">
-                        <Link href="/kyc">Complete Now</Link>
-                    </Button>
+                    {kycStatus !== 'pending' && (
+                        <Button asChild variant="ghost" size="sm" className="text-yellow-800 hover:bg-yellow-100 font-bold text-xs shrink-0">
+                            <Link href="/kyc">{kycStatus === 'rejected' ? 'Resubmit' : 'Complete Now'}</Link>
+                        </Button>
+                    )}
+                </div>
+            )}
+
+            {/* Pending Items Alert */}
+            {(pendingItems.payments > 0 || pendingItems.withdrawals > 0) && (
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                            <Clock className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-blue-800 tracking-tight">Pending Actions</p>
+                            <p className="text-[11px] text-blue-700/80">
+                                {pendingItems.payments > 0 && `${pendingItems.payments} payment(s) awaiting confirmation. `}
+                                {pendingItems.withdrawals > 0 && `${pendingItems.withdrawals} withdrawal(s) processing.`}
+                            </p>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -265,58 +328,69 @@ export default function DashboardPage() {
                             <CardDescription className="text-[10px]">Real-time tracking of your capital</CardDescription>
                         </div>
                         <Button variant="ghost" size="sm" className="text-[10px] font-bold text-blue-600" asChild>
-                            <Link href="/investments">History</Link>
+                            <Link href="/investments">View All</Link>
                         </Button>
                     </CardHeader>
                     <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="bg-white hover:bg-white border-b border-gray-100">
-                                    <TableHead className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-6 h-10">Asset</TableHead>
-                                    <TableHead className="text-[10px] font-bold text-gray-400 uppercase tracking-widest h-10">Amount</TableHead>
-                                    <TableHead className="text-[10px] font-bold text-gray-400 uppercase tracking-widest h-10 text-center">ROI</TableHead>
-                                    <TableHead className="text-[10px] font-bold text-gray-400 uppercase tracking-widest h-10">Status</TableHead>
-                                    <TableHead className="text-right px-6 h-10"></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {investments.map((inv) => (
-                                    <TableRow key={inv.id} className="hover:bg-gray-50/50 transition-colors border-b border-gray-100 last:border-0 h-16">
-                                        <TableCell className="px-6">
-                                            <div>
-                                                <p className="text-sm font-black text-gray-900">{inv.name}</p>
-                                                <div className="flex items-center gap-1 mt-1">
-                                                    <Badge variant="outline" className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 ${inv.risk === 'Low' ? 'bg-green-50 text-green-700 border-green-100' : 'bg-orange-50 text-orange-700 border-orange-100'}`}>
-                                                        {inv.risk === 'Low' ? <CheckCircle2 className="w-2.5 h-2.5 mr-1" /> : <AlertTriangle className="w-2.5 h-2.5 mr-1" />}
-                                                        {inv.risk} Risk
-                                                    </Badge>
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-sm font-black text-gray-900 whitespace-nowrap">{inv.amount}</TableCell>
-                                        <TableCell className="text-center">
-                                            <p className="text-sm font-black text-green-600">{inv.weeklyReturn}</p>
-                                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">Profit</p>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className={`text-[10px] font-black uppercase tracking-tighter ${inv.status === 'Active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
-                                                {inv.status === 'Active' && <Activity className="w-2.5 h-2.5 mr-1" />}
-                                                {inv.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right px-6">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-900 transition-colors">
-                                                <ChevronRight className="w-4 h-4" />
-                                            </Button>
-                                        </TableCell>
+                        {investments.length === 0 ? (
+                            <div className="p-8 text-center">
+                                <p className="text-gray-500 mb-4">No investments yet</p>
+                                <Button asChild size="sm" className="bg-[#2563eb]">
+                                    <Link href="/invest">Start Investing</Link>
+                                </Button>
+                            </div>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-white hover:bg-white border-b border-gray-100">
+                                        <TableHead className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-6 h-10">Asset</TableHead>
+                                        <TableHead className="text-[10px] font-bold text-gray-400 uppercase tracking-widest h-10">Amount</TableHead>
+                                        <TableHead className="text-[10px] font-bold text-gray-400 uppercase tracking-widest h-10 text-center">Returns</TableHead>
+                                        <TableHead className="text-[10px] font-bold text-gray-400 uppercase tracking-widest h-10">Status</TableHead>
+                                        <TableHead className="text-right px-6 h-10"></TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {investments.map((inv) => (
+                                        <TableRow key={inv.id} className="hover:bg-gray-50/50 transition-colors border-b border-gray-100 last:border-0 h-16">
+                                            <TableCell className="px-6">
+                                                <div>
+                                                    <p className="text-sm font-black text-gray-900">{inv.name}</p>
+                                                    <div className="flex items-center gap-1 mt-1">
+                                                        <Badge variant="outline" className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 ${inv.risk === 'low' ? 'bg-green-50 text-green-700 border-green-100' : inv.risk === 'high' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-orange-50 text-orange-700 border-orange-100'}`}>
+                                                            {inv.risk === 'low' ? <CheckCircle2 className="w-2.5 h-2.5 mr-1" /> : <AlertTriangle className="w-2.5 h-2.5 mr-1" />}
+                                                            {inv.risk} Risk
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-sm font-black text-gray-900 whitespace-nowrap">{inv.amount}</TableCell>
+                                            <TableCell className="text-center">
+                                                <p className="text-sm font-black text-green-600">{inv.totalEarned}</p>
+                                                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">Total Earned</p>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className={`text-[10px] font-black uppercase tracking-tighter ${inv.status === 'Active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
+                                                    {inv.status === 'Active' && <Activity className="w-2.5 h-2.5 mr-1" />}
+                                                    {inv.status}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right px-6">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-900 transition-colors" asChild>
+                                                    <Link href={`/investments/${inv.id}`}>
+                                                        <ChevronRight className="w-4 h-4" />
+                                                    </Link>
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        )}
                     </div>
                 </Card>
 
-                {/* Growth Chart */}
+                {/* Growth Chart & Support */}
                 <div className="space-y-6">
                     <ReturnsChart data={chartData} />
 

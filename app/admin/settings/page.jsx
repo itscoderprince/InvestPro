@@ -155,7 +155,9 @@ const searchableSettings = [
     { id: "termsConditions", label: "Terms & Conditions", category: "legal" },
 ];
 
-// Quick Actions
+import { useAdminSettings, useAdminUsers } from "@/hooks/useApi";
+import { adminApi } from "@/lib/api";
+
 const quickActions = [
     { id: "backup", label: "Backup Now", icon: HardDrive, shortcut: "B" },
     { id: "testEmail", label: "Send Test Email", icon: Mail, shortcut: "E" },
@@ -194,77 +196,46 @@ export default function AdminSettingsPage() {
         s.label.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    // General Settings State
-    const [generalSettings, setGeneralSettings] = useState({
-        platformName: "InvestPro",
-        tagline: "Grow Your Wealth",
-        supportEmail: "support@investpro.com",
-        supportPhone: "+91 98765 43210",
-        maintenanceMode: false,
-        maintenanceMessage: "We're updating our platform. Back soon!",
-    });
+    const { settings, loading, error, updateSettings: apiUpdateSettings, refetch, initSettings } = useAdminSettings(activeCategory);
+    const { users: adminList, loading: usersLoading } = useAdminUsers({ role: 'admin' });
 
-    // Platform Configuration State
-    const [platformConfig, setPlatformConfig] = useState({
-        minInvestment: 1000,
-        maxInvestment: 1000000,
-        maxActiveInvestments: 10,
-        minWeeklyReturn: 3,
-        maxWeeklyReturn: 5,
-        returnDay: "Friday",
-        allowRegistrations: true,
-        requireEmailVerification: true,
-        requirePhoneVerification: false,
-        autoApproveKYC: false,
-    });
+    // Local state for edits
+    const [localSettings, setLocalSettings] = useState({});
 
-    // Payment Settings State
-    const [paymentSettings, setPaymentSettings] = useState({
-        accountHolder: "InvestPro Pvt Ltd",
-        accountNumber: "XXXXXXXXXXXX",
-        ifscCode: "SBIN0001234",
-        bankName: "State Bank of India",
-        branch: "Mumbai Main",
-        upiId: "investpro@upi",
-        minWithdrawal: 500,
-        maxWithdrawal: 100000,
-        withdrawalFee: 0,
-    });
-
-    // Security Settings State
-    const [securitySettings, setSecuritySettings] = useState({
-        require2FA: false,
-        sessionTimeout: 30,
-        maxLoginAttempts: 3,
-        lockoutDuration: 15,
-        requireStrongPasswords: true,
-        minPasswordLength: 8,
-        logUserActions: true,
-        logAdminActions: true,
-    });
-
-    // Admin Users
-    const [adminUsers] = useState([
-        { id: 1, name: "Super Admin", email: "admin@investpro.com", role: "Super Admin", lastLogin: "2 hours ago", status: "active" },
-        { id: 2, name: "Manager", email: "manager@investpro.com", role: "Admin", lastLogin: "1 day ago", status: "active" },
-    ]);
+    useEffect(() => {
+        if (settings) {
+            setLocalSettings(settings);
+        }
+    }, [settings]);
 
     const handleSave = async () => {
         setSaveStatus("saving");
         try {
-            await new Promise((r) => setTimeout(r, 1500));
+            await apiUpdateSettings(localSettings);
             setSaveStatus("saved");
             setToast({ message: "Settings saved successfully", type: "success" });
             setTimeout(() => setToast(null), 3000);
         } catch (err) {
             setSaveStatus("error");
+            setToast({ message: err.message || "Failed to save settings", type: "error" });
         }
     };
 
-    const updateSettings = (setter) => (updates) => {
-        setter((prev) => ({ ...prev, ...updates }));
+    const updateLocalSettings = (updates) => {
+        setLocalSettings((prev) => ({ ...prev, ...updates }));
         setSaveStatus("unsaved");
     };
+
+    if (loading && !settings) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+                <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">Loading Settings...</p>
+            </div>
+        );
+    }
+
+
 
     const renderContent = () => {
         switch (activeCategory) {
@@ -284,8 +255,8 @@ export default function AdminSettingsPage() {
                                         <input
                                             id="platformName"
                                             type="text"
-                                            value={generalSettings.platformName}
-                                            onChange={(e) => updateSettings(setGeneralSettings)({ platformName: e.target.value })}
+                                            value={localSettings?.platformName || ""}
+                                            onChange={(e) => updateLocalSettings({ platformName: e.target.value })}
                                             className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                         />
                                     </div>
@@ -294,8 +265,8 @@ export default function AdminSettingsPage() {
                                         <input
                                             id="tagline"
                                             type="text"
-                                            value={generalSettings.tagline}
-                                            onChange={(e) => updateSettings(setGeneralSettings)({ tagline: e.target.value })}
+                                            value={localSettings?.tagline || ""}
+                                            onChange={(e) => updateLocalSettings({ tagline: e.target.value })}
                                             className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                         />
                                     </div>
@@ -304,8 +275,8 @@ export default function AdminSettingsPage() {
                                         <input
                                             id="supportEmail"
                                             type="email"
-                                            value={generalSettings.supportEmail}
-                                            onChange={(e) => updateSettings(setGeneralSettings)({ supportEmail: e.target.value })}
+                                            value={localSettings?.supportEmail || ""}
+                                            onChange={(e) => updateLocalSettings({ supportEmail: e.target.value })}
                                             className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                         />
                                     </div>
@@ -314,8 +285,8 @@ export default function AdminSettingsPage() {
                                         <input
                                             id="supportPhone"
                                             type="text"
-                                            value={generalSettings.supportPhone}
-                                            onChange={(e) => updateSettings(setGeneralSettings)({ supportPhone: e.target.value })}
+                                            value={localSettings?.supportPhone || ""}
+                                            onChange={(e) => updateLocalSettings({ supportPhone: e.target.value })}
                                             className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                         />
                                     </div>
@@ -343,17 +314,17 @@ export default function AdminSettingsPage() {
                                     <CardDescription>Temporarily disable user access for updates</CardDescription>
                                 </div>
                                 <Switch
-                                    checked={generalSettings.maintenanceMode}
-                                    onCheckedChange={(val) => updateSettings(setGeneralSettings)({ maintenanceMode: val })}
+                                    checked={!!localSettings?.maintenanceMode}
+                                    onCheckedChange={(val) => updateLocalSettings({ maintenanceMode: val })}
                                 />
                             </CardHeader>
-                            {generalSettings.maintenanceMode && (
+                            {localSettings?.maintenanceMode && (
                                 <CardContent className="space-y-4 pt-4 border-t border-gray-100">
                                     <div className="space-y-2">
                                         <Label>Message to Users</Label>
                                         <textarea
-                                            value={generalSettings.maintenanceMessage}
-                                            onChange={(e) => updateSettings(setGeneralSettings)({ maintenanceMessage: e.target.value })}
+                                            value={localSettings?.maintenanceMessage || ""}
+                                            onChange={(e) => updateLocalSettings({ maintenanceMessage: e.target.value })}
                                             rows={2}
                                             className="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none resize-none"
                                         />
@@ -383,8 +354,8 @@ export default function AdminSettingsPage() {
                                     <input
                                         id="minInvestment"
                                         type="number"
-                                        value={platformConfig.minInvestment}
-                                        onChange={(e) => updateSettings(setPlatformConfig)({ minInvestment: parseInt(e.target.value) })}
+                                        value={localSettings?.minInvestment || ""}
+                                        onChange={(e) => updateLocalSettings({ minInvestment: parseInt(e.target.value) })}
                                         className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                     />
                                 </div>
@@ -393,8 +364,8 @@ export default function AdminSettingsPage() {
                                     <input
                                         id="maxInvestment"
                                         type="number"
-                                        value={platformConfig.maxInvestment}
-                                        onChange={(e) => updateSettings(setPlatformConfig)({ maxInvestment: parseInt(e.target.value) })}
+                                        value={localSettings?.maxInvestment || ""}
+                                        onChange={(e) => updateLocalSettings({ maxInvestment: parseInt(e.target.value) })}
                                         className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                     />
                                 </div>
@@ -403,8 +374,8 @@ export default function AdminSettingsPage() {
                                     <input
                                         id="maxActiveInvestments"
                                         type="number"
-                                        value={platformConfig.maxActiveInvestments}
-                                        onChange={(e) => updateSettings(setPlatformConfig)({ maxActiveInvestments: parseInt(e.target.value) })}
+                                        value={localSettings?.maxActiveInvestments || ""}
+                                        onChange={(e) => updateLocalSettings({ maxActiveInvestments: parseInt(e.target.value) })}
                                         className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                     />
                                 </div>
@@ -424,8 +395,8 @@ export default function AdminSettingsPage() {
                                         id="minWeeklyReturn"
                                         type="number"
                                         step="0.5"
-                                        value={platformConfig.minWeeklyReturn}
-                                        onChange={(e) => updateSettings(setPlatformConfig)({ minWeeklyReturn: parseFloat(e.target.value) })}
+                                        value={localSettings?.minWeeklyReturn || ""}
+                                        onChange={(e) => updateLocalSettings({ minWeeklyReturn: parseFloat(e.target.value) })}
                                         className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                     />
                                 </div>
@@ -435,8 +406,8 @@ export default function AdminSettingsPage() {
                                         id="maxWeeklyReturn"
                                         type="number"
                                         step="0.5"
-                                        value={platformConfig.maxWeeklyReturn}
-                                        onChange={(e) => updateSettings(setPlatformConfig)({ maxWeeklyReturn: parseFloat(e.target.value) })}
+                                        value={localSettings?.maxWeeklyReturn || ""}
+                                        onChange={(e) => updateLocalSettings({ maxWeeklyReturn: parseFloat(e.target.value) })}
                                         className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                     />
                                 </div>
@@ -444,8 +415,8 @@ export default function AdminSettingsPage() {
                                     <Label htmlFor="returnDay">Return Distribution Day</Label>
                                     <select
                                         id="returnDay"
-                                        value={platformConfig.returnDay}
-                                        onChange={(e) => updateSettings(setPlatformConfig)({ returnDay: e.target.value })}
+                                        value={localSettings?.returnDay || "Monday"}
+                                        onChange={(e) => updateLocalSettings({ returnDay: e.target.value })}
                                         className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] outline-none bg-white"
                                     >
                                         {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => (
@@ -469,8 +440,8 @@ export default function AdminSettingsPage() {
                                         <p className="text-xs text-[#6b7280]">Enable or disable new user signups</p>
                                     </div>
                                     <Switch
-                                        checked={platformConfig.allowRegistrations}
-                                        onCheckedChange={(val) => updateSettings(setPlatformConfig)({ allowRegistrations: val })}
+                                        checked={!!localSettings?.allowRegistrations}
+                                        onCheckedChange={(val) => updateLocalSettings({ allowRegistrations: val })}
                                     />
                                 </div>
                                 <div className="flex items-center justify-between py-4 border-b border-gray-100">
@@ -479,8 +450,8 @@ export default function AdminSettingsPage() {
                                         <p className="text-xs text-[#6b7280]">Users must verify email before login</p>
                                     </div>
                                     <Switch
-                                        checked={platformConfig.requireEmailVerification}
-                                        onCheckedChange={(val) => updateSettings(setPlatformConfig)({ requireEmailVerification: val })}
+                                        checked={!!localSettings?.requireEmailVerification}
+                                        onCheckedChange={(val) => updateLocalSettings({ requireEmailVerification: val })}
                                     />
                                 </div>
                                 <div className="flex items-center justify-between py-4 border-b border-gray-100">
@@ -489,8 +460,8 @@ export default function AdminSettingsPage() {
                                         <p className="text-xs text-[#6b7280]">Users must verify phone number</p>
                                     </div>
                                     <Switch
-                                        checked={platformConfig.requirePhoneVerification}
-                                        onCheckedChange={(val) => updateSettings(setPlatformConfig)({ requirePhoneVerification: val })}
+                                        checked={!!localSettings?.requirePhoneVerification}
+                                        onCheckedChange={(val) => updateLocalSettings({ requirePhoneVerification: val })}
                                     />
                                 </div>
                                 <div className="flex items-center justify-between py-4">
@@ -499,8 +470,8 @@ export default function AdminSettingsPage() {
                                         <p className="text-xs text-red-500">⚠️ Not recommended - enables automatic approval</p>
                                     </div>
                                     <Switch
-                                        checked={platformConfig.autoApproveKYC}
-                                        onCheckedChange={(val) => updateSettings(setPlatformConfig)({ autoApproveKYC: val })}
+                                        checked={!!localSettings?.autoApproveKYC}
+                                        onCheckedChange={(val) => updateLocalSettings({ autoApproveKYC: val })}
                                     />
                                 </div>
                             </CardContent>
@@ -523,8 +494,8 @@ export default function AdminSettingsPage() {
                                     <input
                                         id="accountHolder"
                                         type="text"
-                                        value={paymentSettings.accountHolder}
-                                        onChange={(e) => updateSettings(setPaymentSettings)({ accountHolder: e.target.value })}
+                                        value={localSettings?.accountHolder || ""}
+                                        onChange={(e) => updateLocalSettings({ accountHolder: e.target.value })}
                                         className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                     />
                                 </div>
@@ -533,8 +504,8 @@ export default function AdminSettingsPage() {
                                     <input
                                         id="accountNumber"
                                         type="text"
-                                        value={paymentSettings.accountNumber}
-                                        onChange={(e) => updateSettings(setPaymentSettings)({ accountNumber: e.target.value })}
+                                        value={localSettings?.accountNumber || ""}
+                                        onChange={(e) => updateLocalSettings({ accountNumber: e.target.value })}
                                         className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                     />
                                 </div>
@@ -543,8 +514,8 @@ export default function AdminSettingsPage() {
                                     <input
                                         id="ifscCode"
                                         type="text"
-                                        value={paymentSettings.ifscCode}
-                                        onChange={(e) => updateSettings(setPaymentSettings)({ ifscCode: e.target.value })}
+                                        value={localSettings?.ifscCode || ""}
+                                        onChange={(e) => updateLocalSettings({ ifscCode: e.target.value })}
                                         className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                     />
                                 </div>
@@ -553,8 +524,8 @@ export default function AdminSettingsPage() {
                                     <input
                                         id="bankName"
                                         type="text"
-                                        value={paymentSettings.bankName}
-                                        onChange={(e) => updateSettings(setPaymentSettings)({ bankName: e.target.value })}
+                                        value={localSettings?.bankName || ""}
+                                        onChange={(e) => updateLocalSettings({ bankName: e.target.value })}
                                         className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                     />
                                 </div>
@@ -563,8 +534,8 @@ export default function AdminSettingsPage() {
                                     <input
                                         id="branch"
                                         type="text"
-                                        value={paymentSettings.branch}
-                                        onChange={(e) => updateSettings(setPaymentSettings)({ branch: e.target.value })}
+                                        value={localSettings?.branch || ""}
+                                        onChange={(e) => updateLocalSettings({ branch: e.target.value })}
                                         className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                     />
                                 </div>
@@ -573,8 +544,8 @@ export default function AdminSettingsPage() {
                                     <input
                                         id="upiId"
                                         type="text"
-                                        value={paymentSettings.upiId}
-                                        onChange={(e) => updateSettings(setPaymentSettings)({ upiId: e.target.value })}
+                                        value={localSettings?.upiId || ""}
+                                        onChange={(e) => updateLocalSettings({ upiId: e.target.value })}
                                         className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                     />
                                 </div>
@@ -593,8 +564,8 @@ export default function AdminSettingsPage() {
                                     <input
                                         id="minWithdrawal"
                                         type="number"
-                                        value={paymentSettings.minWithdrawal}
-                                        onChange={(e) => updateSettings(setPaymentSettings)({ minWithdrawal: parseInt(e.target.value) })}
+                                        value={localSettings?.minWithdrawal || ""}
+                                        onChange={(e) => updateLocalSettings({ minWithdrawal: parseInt(e.target.value) })}
                                         className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                     />
                                 </div>
@@ -603,8 +574,8 @@ export default function AdminSettingsPage() {
                                     <input
                                         id="maxWithdrawal"
                                         type="number"
-                                        value={paymentSettings.maxWithdrawal}
-                                        onChange={(e) => updateSettings(setPaymentSettings)({ maxWithdrawal: parseInt(e.target.value) })}
+                                        value={localSettings?.maxWithdrawal || ""}
+                                        onChange={(e) => updateLocalSettings({ maxWithdrawal: parseInt(e.target.value) })}
                                         className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                     />
                                 </div>
@@ -613,8 +584,8 @@ export default function AdminSettingsPage() {
                                     <input
                                         id="withdrawalFee"
                                         type="number"
-                                        value={paymentSettings.withdrawalFee}
-                                        onChange={(e) => updateSettings(setPaymentSettings)({ withdrawalFee: parseInt(e.target.value) })}
+                                        value={localSettings?.withdrawalFee || ""}
+                                        onChange={(e) => updateLocalSettings({ withdrawalFee: parseInt(e.target.value) })}
                                         className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                                     />
                                 </div>
@@ -639,8 +610,8 @@ export default function AdminSettingsPage() {
                                         <p className="text-xs text-[#6b7280]">Two-factor authentication for all admins</p>
                                     </div>
                                     <Switch
-                                        checked={securitySettings.require2FA}
-                                        onCheckedChange={(val) => updateSettings(setSecuritySettings)({ require2FA: val })}
+                                        checked={!!localSettings?.require2FA}
+                                        onCheckedChange={(val) => updateLocalSettings({ require2FA: val })}
                                     />
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
@@ -648,8 +619,8 @@ export default function AdminSettingsPage() {
                                         <Label htmlFor="sessionTimeout">Session Timeout (mins)</Label>
                                         <select
                                             id="sessionTimeout"
-                                            value={securitySettings.sessionTimeout}
-                                            onChange={(e) => updateSettings(setSecuritySettings)({ sessionTimeout: parseInt(e.target.value) })}
+                                            value={localSettings?.sessionTimeout || 30}
+                                            onChange={(e) => updateLocalSettings({ sessionTimeout: parseInt(e.target.value) })}
                                             className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm bg-white outline-none"
                                         >
                                             {[15, 30, 60, 120].map((mins) => (
@@ -662,8 +633,8 @@ export default function AdminSettingsPage() {
                                         <input
                                             id="maxLoginAttempts"
                                             type="number"
-                                            value={securitySettings.maxLoginAttempts}
-                                            onChange={(e) => updateSettings(setSecuritySettings)({ maxLoginAttempts: parseInt(e.target.value) })}
+                                            value={localSettings?.maxLoginAttempts || ""}
+                                            onChange={(e) => updateLocalSettings({ maxLoginAttempts: parseInt(e.target.value) })}
                                             className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20"
                                         />
                                     </div>
@@ -672,8 +643,8 @@ export default function AdminSettingsPage() {
                                         <input
                                             id="lockoutDuration"
                                             type="number"
-                                            value={securitySettings.lockoutDuration}
-                                            onChange={(e) => updateSettings(setSecuritySettings)({ lockoutDuration: parseInt(e.target.value) })}
+                                            value={localSettings?.lockoutDuration || ""}
+                                            onChange={(e) => updateLocalSettings({ lockoutDuration: parseInt(e.target.value) })}
                                             className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20"
                                         />
                                     </div>
@@ -689,19 +660,19 @@ export default function AdminSettingsPage() {
                                     <CardDescription>Configure password complexity rules for users</CardDescription>
                                 </div>
                                 <Switch
-                                    checked={securitySettings.requireStrongPasswords}
-                                    onCheckedChange={(val) => updateSettings(setSecuritySettings)({ requireStrongPasswords: val })}
+                                    checked={!!localSettings?.requireStrongPasswords}
+                                    onCheckedChange={(val) => updateLocalSettings({ requireStrongPasswords: val })}
                                 />
                             </CardHeader>
-                            {securitySettings.requireStrongPasswords && (
+                            {localSettings?.requireStrongPasswords && (
                                 <CardContent className="space-y-4 pt-4 border-t border-gray-100">
                                     <div className="flex items-center gap-4">
                                         <Label htmlFor="minPasswordLength">Minimum length:</Label>
                                         <input
                                             id="minPasswordLength"
                                             type="number"
-                                            value={securitySettings.minPasswordLength}
-                                            onChange={(e) => updateSettings(setSecuritySettings)({ minPasswordLength: parseInt(e.target.value) })}
+                                            value={localSettings?.minPasswordLength || ""}
+                                            onChange={(e) => updateLocalSettings({ minPasswordLength: parseInt(e.target.value) })}
                                             className="w-20 h-9 px-3 rounded-lg border border-gray-300 text-sm outline-none focus:border-[#2563eb]"
                                         />
                                     </div>
@@ -733,15 +704,15 @@ export default function AdminSettingsPage() {
                                 <div className="flex items-center justify-between py-2">
                                     <Label>Log User Actions</Label>
                                     <Switch
-                                        checked={securitySettings.logUserActions}
-                                        onCheckedChange={(val) => updateSettings(setSecuritySettings)({ logUserActions: val })}
+                                        checked={!!localSettings?.logUserActions}
+                                        onCheckedChange={(val) => updateLocalSettings({ logUserActions: val })}
                                     />
                                 </div>
                                 <div className="flex items-center justify-between py-2">
                                     <Label>Log Admin Actions</Label>
                                     <Switch
-                                        checked={securitySettings.logAdminActions}
-                                        onCheckedChange={(val) => updateSettings(setSecuritySettings)({ logAdminActions: val })}
+                                        checked={!!localSettings?.logAdminActions}
+                                        onCheckedChange={(val) => updateLocalSettings({ logAdminActions: val })}
                                     />
                                 </div>
                             </CardContent>
@@ -779,8 +750,8 @@ export default function AdminSettingsPage() {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
-                                            {adminUsers.map((admin) => (
-                                                <tr key={admin.id} className="hover:bg-gray-50/50 transition-colors">
+                                            {adminList.map((admin) => (
+                                                <tr key={admin.id || admin._id} className="hover:bg-gray-50/50 transition-colors">
                                                     <td className="px-6 py-4">
                                                         <div className="flex items-center gap-3">
                                                             <Avatar className="h-9 w-9">
@@ -855,7 +826,13 @@ export default function AdminSettingsPage() {
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="retention">Retention (backups)</Label>
-                                        <input id="retention" type="number" defaultValue={30} className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm outline-none focus:border-[#2563eb]" />
+                                        <input
+                                            id="retention"
+                                            type="number"
+                                            value={localSettings?.backupRetention || 30}
+                                            onChange={(e) => updateLocalSettings({ backupRetention: parseInt(e.target.value) })}
+                                            className="w-full h-10 px-4 rounded-lg border border-gray-300 text-sm outline-none focus:border-[#2563eb]"
+                                        />
                                     </div>
                                 </div>
                             </CardContent>
@@ -923,7 +900,8 @@ export default function AdminSettingsPage() {
                             <CardContent>
                                 <textarea
                                     rows={8}
-                                    defaultValue="Enter your Terms & Conditions here..."
+                                    value={localSettings?.termsAndConditions || ""}
+                                    onChange={(e) => updateLocalSettings({ termsAndConditions: e.target.value })}
                                     className="w-full px-4 py-3 rounded-lg border border-gray-300 text-sm resize-none outline-none focus:border-[#2563eb] min-h-[200px]"
                                 />
                             </CardContent>
@@ -944,7 +922,8 @@ export default function AdminSettingsPage() {
                             <CardContent>
                                 <textarea
                                     rows={8}
-                                    defaultValue="Enter your Privacy Policy here..."
+                                    value={localSettings?.privacyPolicy || ""}
+                                    onChange={(e) => updateLocalSettings({ privacyPolicy: e.target.value })}
                                     className="w-full px-4 py-3 rounded-lg border border-gray-300 text-sm resize-none outline-none focus:border-[#2563eb] min-h-[200px]"
                                 />
                             </CardContent>
@@ -961,7 +940,8 @@ export default function AdminSettingsPage() {
                                     <Label>Risk Disclaimer</Label>
                                     <textarea
                                         rows={3}
-                                        defaultValue="Investment involves risk. Past performance is not indicative of future results."
+                                        value={localSettings?.riskDisclaimer || ""}
+                                        onChange={(e) => updateLocalSettings({ riskDisclaimer: e.target.value })}
                                         className="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm resize-none outline-none focus:border-[#2563eb]"
                                     />
                                 </div>

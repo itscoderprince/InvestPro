@@ -50,109 +50,8 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-// Sample data
-const ticketsData = [
-    {
-        id: "TKT-1001",
-        userId: "USR-1001",
-        userName: "Rahul Sharma",
-        userEmail: "rahul@email.com",
-        userPhone: "+91 98765 43210",
-        category: "payment",
-        subject: "Payment not reflecting in dashboard",
-        description: "I made a payment of ₹15,000 yesterday via bank transfer but it's not showing in my dashboard. I have the transaction receipt. Please help urgently.",
-        status: "open",
-        priority: "high",
-        assignedTo: null,
-        createdAt: "2024-01-28T10:30:00",
-        updatedAt: "2024-01-28T10:30:00",
-        attachments: 1,
-        messages: [
-            { id: 1, sender: "user", message: "I made a payment of ₹15,000 yesterday via bank transfer but it's not showing in my dashboard. I have the transaction receipt. Please help urgently.", timestamp: "2024-01-28T10:30:00" },
-        ],
-    },
-    {
-        id: "TKT-1002",
-        userId: "USR-1002",
-        userName: "Priya Singh",
-        userEmail: "priya@email.com",
-        userPhone: "+91 87654 32109",
-        category: "kyc",
-        subject: "KYC verification taking too long",
-        description: "I submitted my KYC documents 5 days ago but still showing as pending. Can you please check the status?",
-        status: "in_progress",
-        priority: "medium",
-        assignedTo: "Admin",
-        createdAt: "2024-01-27T14:20:00",
-        updatedAt: "2024-01-28T09:15:00",
-        attachments: 0,
-        messages: [
-            { id: 1, sender: "user", message: "I submitted my KYC documents 5 days ago but still showing as pending. Can you please check the status?", timestamp: "2024-01-27T14:20:00" },
-            { id: 2, sender: "admin", adminName: "Support Team", message: "Hi Priya, we apologize for the delay. We're experiencing a high volume of KYC requests. Your documents are in queue and will be reviewed within 24 hours.", timestamp: "2024-01-28T09:15:00" },
-        ],
-    },
-    {
-        id: "TKT-1003",
-        userId: "USR-1003",
-        userName: "Amit Kumar",
-        userEmail: "amit@email.com",
-        userPhone: "+91 76543 21098",
-        category: "withdrawal",
-        subject: "Withdrawal stuck for 3 days",
-        description: "My withdrawal request of ₹8,000 is stuck in pending status for 3 days now. When will it be processed?",
-        status: "open",
-        priority: "high",
-        assignedTo: null,
-        createdAt: "2024-01-28T08:45:00",
-        updatedAt: "2024-01-28T08:45:00",
-        attachments: 0,
-        messages: [
-            { id: 1, sender: "user", message: "My withdrawal request of ₹8,000 is stuck in pending status for 3 days now. When will it be processed?", timestamp: "2024-01-28T08:45:00" },
-        ],
-    },
-    {
-        id: "TKT-1004",
-        userId: "USR-1004",
-        userName: "Sneha Patel",
-        userEmail: "sneha@email.com",
-        userPhone: "+91 65432 10987",
-        category: "investment",
-        subject: "Questions about weekly returns calculation",
-        description: "Can you explain how the weekly returns are calculated? I want to understand the methodology.",
-        status: "closed",
-        priority: "low",
-        assignedTo: "Admin",
-        createdAt: "2024-01-25T16:00:00",
-        updatedAt: "2024-01-26T11:30:00",
-        attachments: 0,
-        messages: [
-            { id: 1, sender: "user", message: "Can you explain how the weekly returns are calculated? I want to understand the methodology.", timestamp: "2024-01-25T16:00:00" },
-            { id: 2, sender: "admin", adminName: "Support Team", message: "Hi Sneha, weekly returns are calculated based on the performance of the index you've invested in. Each index has its own return rate which is applied to your principal every week. You can find detailed information in our FAQ section.", timestamp: "2024-01-26T10:00:00" },
-            { id: 3, sender: "user", message: "Thank you for the explanation. That makes sense now!", timestamp: "2024-01-26T11:00:00" },
-            { id: 4, sender: "admin", adminName: "Support Team", message: "You're welcome! Feel free to reach out if you have any more questions. Closing this ticket now.", timestamp: "2024-01-26T11:30:00" },
-        ],
-    },
-    {
-        id: "TKT-1005",
-        userId: "USR-1005",
-        userName: "Vikram Roy",
-        userEmail: "vikram@email.com",
-        userPhone: "+91 54321 09876",
-        category: "account",
-        subject: "Cannot update phone number",
-        description: "I'm trying to update my phone number in the profile section but getting an error. Please help.",
-        status: "in_progress",
-        priority: "medium",
-        assignedTo: "Admin",
-        createdAt: "2024-01-27T11:30:00",
-        updatedAt: "2024-01-28T10:00:00",
-        attachments: 2,
-        messages: [
-            { id: 1, sender: "user", message: "I'm trying to update my phone number in the profile section but getting an error. Please help.", timestamp: "2024-01-27T11:30:00" },
-            { id: 2, sender: "admin", adminName: "Support Team", message: "Hi Vikram, could you please share a screenshot of the error you're seeing?", timestamp: "2024-01-28T10:00:00" },
-        ],
-    },
-];
+import { useAdminTickets, useAdminTicket } from "@/hooks/useApi";
+import { adminApi } from "@/lib/api";
 
 const categories = {
     payment: { label: "Payment", color: "bg-blue-100 text-blue-800", icon: CreditCard },
@@ -317,7 +216,7 @@ function TicketCard({ ticket, onView, onAssign, onPriority }) {
                     <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => onPriority(ticket.id)}
+                        onClick={() => onPriority(ticket.id, ticket.priority)}
                         className={`h-8 w-8 ${ticket.priority === "high" ? "text-red-500 bg-red-50" : "text-[#94a3b8] hover:text-red-500 hover:bg-red-50"}`}
                         title="Mark as priority"
                     >
@@ -348,10 +247,14 @@ function TicketSheet({ ticket, isOpen, onClose, onReply, onStatusChange, onPrior
     const handleSendReply = async () => {
         if (!replyText.trim()) return;
         setIsSubmitting(true);
-        await new Promise((r) => setTimeout(r, 1000));
-        onReply(ticket.id, replyText);
-        setReplyText("");
-        setIsSubmitting(false);
+        try {
+            await onReply(ticket.id, replyText);
+            setReplyText("");
+        } catch (error) {
+            console.error("Failed to send reply:", error);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -506,7 +409,7 @@ export default function AdminTicketsPage() {
     const [priorityFilter, setPriorityFilter] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
     const [viewMode, setViewMode] = useState("grid");
-    const [tickets, setTickets] = useState(ticketsData);
+    const { tickets, loading, error, refetch } = useAdminTickets({ status: activeTab });
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -542,62 +445,70 @@ export default function AdminTicketsPage() {
         setSelectedTicket(ticket);
     };
 
-    const handleAssign = (id) => {
-        setTickets((prev) =>
-            prev.map((t) => (t.id === id ? { ...t, assignedTo: "Admin" } : t))
-        );
-        setToast("Ticket assigned to you");
+    const handleAssign = async (id) => {
+        try {
+            await adminApi.updateTicket(id, { assignedTo: "Support" });
+            refetch();
+            setToast("Ticket assigned to you");
+        } catch (err) {
+            setToast("Failed to assign ticket");
+        }
         setTimeout(() => setToast(null), 3000);
     };
 
-    const handleTogglePriority = (id) => {
-        setTickets((prev) =>
-            prev.map((t) =>
-                t.id === id ? { ...t, priority: t.priority === "high" ? "medium" : "high" } : t
-            )
-        );
+    const handleTogglePriority = async (id, currentPriority) => {
+        const newPriority = currentPriority === "high" ? "medium" : "high";
+        try {
+            await adminApi.updateTicket(id, { priority: newPriority });
+            refetch();
+            if (selectedTicket?.id === id) {
+                setSelectedTicket(prev => ({ ...prev, priority: newPriority }));
+            }
+        } catch (err) {
+            setToast("Failed to update priority");
+            setTimeout(() => setToast(null), 3000);
+        }
     };
 
-    const handleReply = (id, message) => {
-        const newMessage = {
-            id: Date.now(),
-            sender: "admin",
-            adminName: "Admin",
-            message,
-            timestamp: new Date().toISOString(),
-        };
-        setTickets((prev) =>
-            prev.map((t) =>
-                t.id === id
-                    ? { ...t, messages: [...t.messages, newMessage], updatedAt: new Date().toISOString() }
-                    : t
-            )
-        );
-        setSelectedTicket((prev) =>
-            prev ? { ...prev, messages: [...prev.messages, newMessage] } : null
-        );
-        setToast("Reply sent successfully");
+    const handleReply = async (id, message) => {
+        try {
+            await adminApi.replyTicket(id, message);
+            refetch();
+            // Update selected ticket messages locally if needed or let effect handle it if we add a singular hook
+            // For now, let's keep it simple and just refetch all if we don't have a better way
+            setToast("Reply sent successfully");
+        } catch (err) {
+            setToast("Failed to send reply");
+        }
         setTimeout(() => setToast(null), 3000);
     };
 
-    const handleStatusChange = (id, newStatus) => {
-        setTickets((prev) =>
-            prev.map((t) => (t.id === id ? { ...t, status: newStatus, updatedAt: new Date().toISOString() } : t))
-        );
-        setSelectedTicket((prev) =>
-            prev ? { ...prev, status: newStatus } : null
-        );
-        setToast(`Ticket ${newStatus === "closed" ? "closed" : "updated"}`);
+    const handleStatusChange = async (id, newStatus) => {
+        try {
+            await adminApi.updateTicket(id, { status: newStatus });
+            refetch();
+            if (selectedTicket?.id === id) {
+                setSelectedTicket(prev => ({ ...prev, status: newStatus }));
+            }
+            setToast(`Ticket ${newStatus === "closed" ? "closed" : "updated"}`);
+        } catch (err) {
+            setToast("Failed to update status");
+        }
         setTimeout(() => setToast(null), 3000);
     };
 
-    const handlePriorityChange = (id, newPriority) => {
-        setTickets((prev) =>
-            prev.map((t) => (t.id === id ? { ...t, priority: newPriority } : t))
-        );
-        setSelectedTicket((prev) =>
-            prev ? { ...prev, priority: newPriority } : null
-        );
+    const handlePriorityChange = async (id, newPriority) => {
+        try {
+            await adminApi.updateTicket(id, { priority: newPriority });
+            refetch();
+            if (selectedTicket?.id === id) {
+                setSelectedTicket(prev => ({ ...prev, priority: newPriority }));
+            }
+            setToast(`Priority updated to ${newPriority}`);
+        } catch (err) {
+            setToast("Failed to update priority");
+        }
+        setTimeout(() => setToast(null), 3000);
     };
 
     return (
@@ -672,7 +583,7 @@ export default function AdminTicketsPage() {
             </div>
 
             {/* Filters & Content */}
-            {!mounted ? (
+            {loading && !tickets.length ? (
                 <div className="h-96 flex items-center justify-center bg-white rounded-xl border border-dashed border-gray-200">
                     <div className="flex flex-col items-center gap-2">
                         <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />

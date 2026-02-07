@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
     TrendingUp,
@@ -17,6 +17,7 @@ import {
     Filter,
     Home,
     ChevronRight,
+    Loader2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -54,78 +55,47 @@ import {
     TabsList,
     TabsTrigger,
 } from "@/components/ui/tabs";
-
-// Sample Data
-const investments = [
-    {
-        id: "INV-8821",
-        indexName: "Tech Growth Index",
-        amount: 15000,
-        returns: 675,
-        growth: "+4.5%",
-        status: "active",
-        date: "12 Jan 2024",
-        nextPayout: "05 Feb 2024",
-    },
-    {
-        id: "INV-7712",
-        indexName: "Stability Index",
-        amount: 10000,
-        returns: 320,
-        growth: "+3.2%",
-        status: "active",
-        date: "05 Jan 2024",
-        nextPayout: "05 Feb 2024",
-    },
-    {
-        id: "INV-6654",
-        indexName: "High Yield Index",
-        amount: 25000,
-        returns: 1250,
-        growth: "+5.0%",
-        status: "pending",
-        date: "28 Jan 2024",
-        nextPayout: "Pending Verification",
-    },
-    {
-        id: "INV-5541",
-        indexName: "Balanced Index",
-        amount: 7500,
-        returns: 285,
-        growth: "+3.8%",
-        status: "closed",
-        date: "01 Dec 2023",
-        nextPayout: "N/A",
-    },
-];
+import { useInvestments, useInvestmentSummary, usePaymentRequests } from "@/hooks/useApi";
 
 const statusStyles = {
     active: "bg-green-100 text-green-700 border-green-200",
     pending: "bg-amber-100 text-amber-700 border-amber-200",
+    completed: "bg-blue-100 text-blue-700 border-blue-200",
     closed: "bg-gray-100 text-gray-500 border-gray-200",
     rejected: "bg-red-100 text-red-700 border-red-200",
 };
 
 export default function InvestmentsPage() {
-    const [mounted, setMounted] = useState(false);
+    const { investments, loading: investmentsLoading } = useInvestments();
+    const { data: summaryData, loading: summaryLoading } = useInvestmentSummary();
+    const { data: pendingData } = usePaymentRequests();
+
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState("all");
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    if (!mounted) return null;
+    const loading = investmentsLoading || summaryLoading;
 
     const filteredInvestments = investments.filter(inv => {
-        const matchesSearch = inv.indexName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            inv.id.toLowerCase().includes(searchQuery.toLowerCase());
+        const indexName = inv.index?.name || '';
+        const matchesSearch = indexName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            ((inv.id || inv._id) && (inv.id || inv._id).toLowerCase().includes(searchQuery.toLowerCase()));
         const matchesTab = activeTab === "all" || inv.status === activeTab;
         return matchesSearch && matchesTab;
     });
 
-    const totalInvested = investments.reduce((acc, inv) => acc + (inv.status !== 'rejected' ? inv.amount : 0), 0);
-    const totalReturns = investments.reduce((acc, inv) => acc + (inv.status === 'active' || inv.status === 'closed' ? inv.returns : 0), 0);
+    const totalInvested = summaryData?.overview?.totalInvested || 0;
+    const totalReturns = summaryData?.overview?.totalReturns || 0;
+    const activeCount = summaryData?.overview?.activeCount || investments.filter(i => i.status === 'active').length;
+    const pendingPayments = pendingData?.requests || [];
+    const firstPending = pendingPayments[0];
+
+    if (loading) {
+        return (
+            <div className="min-h-[400px] flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto pt-0 pb-2 md:pb-4 px-2 md:px-1">
@@ -160,36 +130,39 @@ export default function InvestmentsPage() {
             </div>
 
             {/* Pending Investment Card */}
-            <motion.div
-                initial={{ y: -20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                className="bg-amber-50 dark:bg-amber-500/5 border-2 border-amber-500/20 rounded-[2rem] p-6 md:p-8 relative overflow-hidden group shadow-xl shadow-amber-500/5"
-            >
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-                    <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/20">
-                            <Clock className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <Badge className="bg-amber-500 text-white border-none font-black text-[10px] uppercase tracking-widest px-2 h-5">New Request</Badge>
-                                <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest px-2 py-0.5 rounded-md bg-amber-500/10">Payment Pending</span>
+            {firstPending && (
+                <motion.div
+                    initial={{ y: -20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="bg-amber-50 dark:bg-amber-500/5 border-2 border-amber-500/20 rounded-[2rem] p-6 md:p-8 relative overflow-hidden group shadow-xl shadow-amber-500/5"
+                >
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                        <div className="flex items-start gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/20">
+                                <Clock className="w-6 h-6" />
                             </div>
-                            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Tech Growth Index • ₹25,000</h3>
-                            <p className="text-sm font-bold text-amber-700/60 uppercase tracking-widest mt-1">23 hours 45 minutes left to complete payment</p>
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <Badge className="bg-amber-500 text-white border-none font-black text-[10px] uppercase tracking-widest px-2 h-5">New Request</Badge>
+                                    <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest px-2 py-0.5 rounded-md bg-amber-500/10">Payment Pending</span>
+                                </div>
+                                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                                    {firstPending.index?.name || 'Investment'} • ₹{(firstPending.amount || 0).toLocaleString()}
+                                </h3>
+                                <p className="text-sm font-bold text-amber-700/60 uppercase tracking-widest mt-1">Complete payment to activate investment</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <Button className="bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl h-12 px-8 uppercase tracking-widest text-[10px] shadow-lg shadow-amber-500/20" asChild>
+                                <Link href={`/invest/track/${firstPending.id || firstPending._id}`}>Upload Payment Proof</Link>
+                            </Button>
+                            <Button variant="outline" className="border-amber-200 text-amber-700 hover:bg-amber-50 font-black rounded-xl h-12 px-4" asChild>
+                                <Link href={`/invest/track/${firstPending.id || firstPending._id}`}>Details</Link>
+                            </Button>
                         </div>
                     </div>
-                    <div className="flex gap-3">
-                        <Button className="bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl h-12 px-8 uppercase tracking-widest text-[10px] shadow-lg shadow-amber-500/20" asChild>
-                            <Link href="/invest/track/PAY-123456">Upload Payment Proof</Link>
-                        </Button>
-                        <Button variant="outline" className="border-amber-200 text-amber-700 hover:bg-amber-50 font-black rounded-xl h-12 px-4" asChild>
-                            <Link href="/invest/track/PAY-123456">Details</Link>
-                        </Button>
-                    </div>
-                </div>
-                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-200/20 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2" />
-            </motion.div>
+                </motion.div>
+            )}
 
             {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -228,7 +201,7 @@ export default function InvestmentsPage() {
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Active Portfolios</p>
-                                <h3 className="text-2xl font-black text-gray-900">{investments.filter(i => i.status === 'active').length}</h3>
+                                <h3 className="text-2xl font-black text-gray-900">{activeCount}</h3>
                             </div>
                             <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
                                 <CheckCircle className="w-5 h-5" />
@@ -247,7 +220,7 @@ export default function InvestmentsPage() {
                             <TabsTrigger value="all" className="rounded-lg font-bold px-6 h-9">All</TabsTrigger>
                             <TabsTrigger value="active" className="rounded-lg font-bold px-6 h-9">Active</TabsTrigger>
                             <TabsTrigger value="pending" className="rounded-lg font-bold px-6 h-9">Pending</TabsTrigger>
-                            <TabsTrigger value="closed" className="rounded-lg font-bold px-6 h-9">Closed</TabsTrigger>
+                            <TabsTrigger value="completed" className="rounded-lg font-bold px-6 h-9">Completed</TabsTrigger>
                         </TabsList>
                     </Tabs>
 
@@ -277,36 +250,42 @@ export default function InvestmentsPage() {
                         <TableBody>
                             {filteredInvestments.length > 0 ? (
                                 filteredInvestments.map((inv) => (
-                                    <TableRow key={inv.id} className="group hover:bg-gray-50/50 transition-colors">
+                                    <TableRow key={inv.id || inv._id} className="group hover:bg-gray-50/50 transition-colors">
                                         <TableCell className="py-4">
                                             <div className="flex flex-col">
-                                                <span className="font-bold text-gray-900">{inv.indexName}</span>
-                                                <span className="text-[10px] font-bold text-gray-400">{inv.id}</span>
+                                                <span className="font-bold text-gray-900">{inv.index?.name || 'Unknown Index'}</span>
+                                                <span className="text-[10px] font-bold text-gray-400">INV-{(inv.id || inv._id)?.slice(-6)}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell className="py-4">
-                                            <span className="font-black text-gray-900 leading-none">₹{inv.amount.toLocaleString()}</span>
+                                            <span className="font-black text-gray-900 leading-none">₹{(inv.amount || 0).toLocaleString()}</span>
                                         </TableCell>
                                         <TableCell className="py-4">
                                             <div className="flex flex-col">
-                                                <span className="font-black text-green-600 leading-none">₹{inv.returns.toLocaleString()}</span>
-                                                <span className="text-[10px] font-bold text-green-500 bg-green-50 w-fit px-1.5 rounded mt-1">{inv.growth}</span>
+                                                <span className="font-black text-green-600 leading-none">₹{(inv.totalReturns || 0).toLocaleString()}</span>
+                                                {inv.totalReturns > 0 && (
+                                                    <span className="text-[10px] font-bold text-green-500 bg-green-50 w-fit px-1.5 rounded mt-1">
+                                                        +{((inv.totalReturns / inv.amount) * 100).toFixed(1)}%
+                                                    </span>
+                                                )}
                                             </div>
                                         </TableCell>
                                         <TableCell className="py-4 text-center">
-                                            <Badge variant="outline" className={`${statusStyles[inv.status]} font-black text-[9px] uppercase tracking-tighter px-2 h-5 rounded-md`}>
+                                            <Badge variant="outline" className={`${statusStyles[inv.status] || statusStyles.pending} font-black text-[9px] uppercase tracking-tighter px-2 h-5 rounded-md`}>
                                                 {inv.status}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="py-4">
                                             <div className="flex items-center gap-2 text-xs text-gray-500 font-medium">
                                                 <Calendar className="w-3 h-3 text-gray-400" />
-                                                {inv.date}
+                                                {new Date(inv.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                                             </div>
                                         </TableCell>
                                         <TableCell className="py-4 text-right">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-blue-50 hover:text-blue-600">
-                                                <ArrowUpRight className="w-4 h-4" />
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-blue-50 hover:text-blue-600" asChild>
+                                                <Link href={`/investments/${inv.id || inv._id}`}>
+                                                    <ArrowUpRight className="w-4 h-4" />
+                                                </Link>
                                             </Button>
                                         </TableCell>
                                     </TableRow>
@@ -342,12 +321,12 @@ export default function InvestmentsPage() {
                         <div>
                             <h2 className="text-xl font-black text-amber-900">Upcoming Payout Cycle</h2>
                             <p className="text-amber-800/70 text-sm max-w-md mt-1 font-medium italic">
-                                Monday, Feb 5th • All weekly profits will be automatically credited to your wallet for withdrawal.
+                                Every Monday • All weekly profits will be automatically credited to your wallet for withdrawal.
                             </p>
                         </div>
                     </div>
-                    <Button variant="outline" className="border-amber-200 text-amber-900 hover:bg-amber-100 font-black h-12 px-8">
-                        View Payout Schedule
+                    <Button variant="outline" className="border-amber-200 text-amber-900 hover:bg-amber-100 font-black h-12 px-8" asChild>
+                        <Link href="/returns">View Payout Schedule</Link>
                     </Button>
                 </div>
                 <div className="absolute top-0 right-0 w-64 h-64 bg-amber-200/30 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2" />

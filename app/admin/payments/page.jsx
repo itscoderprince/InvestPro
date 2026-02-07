@@ -10,7 +10,6 @@ import {
     Clock,
     Filter,
     Download,
-    Eye,
     Check,
     X,
     CheckCircle2,
@@ -27,6 +26,7 @@ import {
     User,
 } from "lucide-react";
 
+import { adminApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -51,19 +51,11 @@ import {
     TooltipTrigger,
     TooltipContent,
 } from "@/components/ui/tooltip";
-
-// Sample Payment data
-const paymentRequests = [
-    { id: "PAY-9901", user: "Rahul Sharma", email: "rahul@email.com", amount: "₹15,000", method: "UPI", refId: "123456789012", status: "pending", date: "5 min ago" },
-    { id: "PAY-9902", user: "Sneha Patel", email: "sneha@email.com", amount: "₹50,000", method: "Bank Transfer", refId: "BANK-X88229", status: "pending", date: "15 min ago" },
-    { id: "PAY-9903", user: "Amit Kumar", email: "amit@email.com", amount: "₹5,000", method: "PhonePe", refId: "TXN11223344", status: "approved", date: "1 hour ago" },
-    { id: "PAY-9904", user: "Priya Singh", email: "priya@email.com", amount: "₹25,000", method: "Google Pay", refId: "GPAY-992288", status: "pending", date: "3 hours ago" },
-    { id: "PAY-9905", user: "Vikram Roy", email: "vikram@email.com", amount: "₹10,000", method: "IMPS", refId: "IMPS88229911", status: "rejected", date: "6 hours ago" },
-    { id: "PAY-9906", user: "Karan Mehta", email: "karan@email.com", amount: "₹1,20,000", method: "RTGS", refId: "RTGS-HB88221", status: "approved", date: "Yesterday" },
-];
+import { useAdminPayments } from "@/hooks/useApi";
+import { toast } from "sonner";
 
 function StatusBadge({ status }) {
-    if (status === "approved") {
+    if (status === "approved" || status === "verified") {
         return (
             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 font-medium py-0.5">
                 <CheckCircle2 className="w-3 h-3" />
@@ -71,7 +63,7 @@ function StatusBadge({ status }) {
             </Badge>
         );
     }
-    if (status === "rejected") {
+    if (status === "rejected" || status === "failed") {
         return (
             <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1 font-medium py-0.5">
                 <XCircle className="w-3 h-3" />
@@ -82,15 +74,25 @@ function StatusBadge({ status }) {
     return (
         <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1 font-medium py-0.5">
             <Clock className="w-3 h-3" />
-            Processing
+            {status === "proof_uploaded" ? "Proof Uploaded" : "Processing"}
         </Badge>
     );
 }
 
 export default function PaymentManagementPage() {
     const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const perPage = 10;
+
+    const { payments, pagination, loading, error, refetch } = useAdminPayments({
+        page: currentPage,
+        limit: perPage,
+        search: searchQuery
+    });
+
     const [selectedPayment, setSelectedPayment] = useState(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [actionLoading, setActionLoading] = useState(null); // ID of the payment being processed
     const [mounted, setMounted] = useState(false);
 
     React.useEffect(() => {
@@ -98,20 +100,46 @@ export default function PaymentManagementPage() {
     }, []);
 
     const stats = [
-        { title: "Pending Request", value: "₹2,45,000", icon: Clock, color: "text-white", bg: "bg-blue-600" },
-        { title: "Verified Today", value: "₹4,12,000", icon: CheckCircle, color: "text-white", bg: "bg-green-600" },
-        { title: "Total Deposit", value: "₹85.4L", icon: Wallet, color: "text-white", bg: "bg-purple-600" },
-        { title: "Failed/Rejected", value: "6", icon: XCircle, color: "text-white", bg: "bg-red-600" },
+        { title: "Pending Request", value: pagination?.total || 0, icon: Clock, color: "text-white", bg: "bg-blue-600" },
+        { title: "Verified Total", value: pagination?.verifiedTotal || 0, icon: CheckCircle, color: "text-white", bg: "bg-green-600" },
+        { title: "Total Deposit", value: pagination?.totalAmount ? `₹${pagination.totalAmount.toLocaleString()}` : "₹0", icon: Wallet, color: "text-white", bg: "bg-purple-600" },
+        { title: "Failed/Rejected", value: pagination?.rejectedTotal || 0, icon: XCircle, color: "text-white", bg: "bg-red-600" },
     ];
 
     const handleViewDetails = (payment) => {
         setSelectedPayment(payment);
-        isSheetOpen || setIsSheetOpen(true);
+        setIsSheetOpen(true);
+    };
+
+    const handleAction = async (id, status) => {
+        setActionLoading(id);
+        try {
+            if (status === 'approved') {
+                await adminApi.approvePayment(id);
+                toast.success("Payment approved successfully");
+            } else {
+                await adminApi.rejectPayment(id, "Rejected by admin");
+                toast.success("Payment rejected");
+            }
+
+            // Refetch without showing the global loading spinner if possible, 
+            // but for now we'll just wait for the refetch to complete.
+            await refetch();
+
+            if (selectedPayment?._id === id || selectedPayment?.id === id) {
+                setIsSheetOpen(false);
+            }
+        } catch (err) {
+            console.error("Action error:", err);
+            toast.error(err.message || "Action failed");
+        } finally {
+            setActionLoading(null);
+        }
     };
 
     return (
         <div className="space-y-6">
-            {!mounted ? (
+            {!mounted || (loading && !payments) ? (
                 <div className="h-96 flex items-center justify-center bg-white rounded-xl border border-dashed border-gray-200">
                     <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
                 </div>
@@ -163,7 +191,7 @@ export default function PaymentManagementPage() {
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                     />
                                 </div>
-                                <Button variant="outline" size="sm" className="h-9 border-gray-200 text-xs">
+                                <Button variant="outline" size="sm" className="h-9 border-gray-200 text-xs text-slate-600">
                                     <Filter className="w-3.5 h-3.5 mr-2" />
                                     Filter
                                 </Button>
@@ -185,56 +213,75 @@ export default function PaymentManagementPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {paymentRequests.map((req) => (
-                                        <TableRow key={req.id} className="hover:bg-gray-50/50 transition-colors">
+                                    {payments?.map((req) => (
+                                        <TableRow key={req.id || req._id} className="hover:bg-gray-50/50 transition-colors">
                                             <TableCell className="px-6">
                                                 <div className="min-w-0">
-                                                    <p className="text-xs font-semibold text-gray-900 truncate">{req.user}</p>
-                                                    <p className="text-[10px] text-gray-400 truncate font-mono">{req.id}</p>
+                                                    <p className="text-xs font-semibold text-gray-900 truncate">{req.user?.name || 'Unknown'}</p>
+                                                    <p className="text-[10px] text-gray-400 truncate font-mono">{req.requestId || req._id}</p>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-xs font-bold text-blue-600">{req.amount}</TableCell>
-                                            <TableCell className="text-[11px] font-medium text-gray-700">{req.method}</TableCell>
-                                            <TableCell className="text-[10px] font-mono text-gray-500 max-w-[120px] truncate">{req.refId}</TableCell>
+                                            <TableCell className="text-xs font-bold text-blue-600">₹{req.amount.toLocaleString()}</TableCell>
+                                            <TableCell className="text-[11px] font-medium text-gray-700 capitalize">{req.paymentMethod?.replace('_', ' ') || '—'}</TableCell>
+                                            <TableCell className="text-[10px] font-mono text-gray-500 max-w-[120px] truncate">{req.transactionReference || '—'}</TableCell>
                                             <TableCell>
                                                 <StatusBadge status={req.status} />
                                             </TableCell>
-                                            <TableCell className="text-[10px] text-gray-500 font-medium">{req.date}</TableCell>
+                                            <TableCell className="text-[10px] text-gray-500 font-medium">
+                                                {new Date(req.createdAt).toLocaleDateString()}
+                                            </TableCell>
                                             <TableCell className="text-right px-6">
                                                 <div className="flex items-center justify-end gap-1">
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-7 w-7 text-indigo-600 hover:bg-indigo-50"
-                                                                onClick={() => handleViewDetails(req)}
-                                                            >
-                                                                <Receipt className="w-3.5 h-3.5" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent className="text-[10px]">View Proof</TooltipContent>
-                                                    </Tooltip>
-                                                    {req.status === "pending" && (
-                                                        <>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:bg-green-50">
-                                                                        <Check className="w-3.5 h-3.5" />
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent className="text-[10px]">Verify Payment</TooltipContent>
-                                                            </Tooltip>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600 hover:bg-red-50">
-                                                                        <X className="w-3.5 h-3.5" />
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent className="text-[10px]">Reject</TooltipContent>
-                                                            </Tooltip>
-                                                        </>
-                                                    )}
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-7 w-7 text-indigo-600 hover:bg-indigo-50"
+                                                                    onClick={() => handleViewDetails(req)}
+                                                                >
+                                                                    <Receipt className="w-3.5 h-3.5" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent className="text-[10px]">View Proof</TooltipContent>
+                                                        </Tooltip>
+                                                        {(req.status === "pending" || req.status === "proof_uploaded") && (
+                                                            <>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-7 w-7 text-green-600 hover:bg-green-50"
+                                                                            disabled={actionLoading === (req.id || req._id)}
+                                                                            onClick={() => handleAction(req.id || req._id, 'approved')}
+                                                                        >
+                                                                            {actionLoading === (req.id || req._id) ? (
+                                                                                <div className="w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                                                                            ) : (
+                                                                                <Check className="w-3.5 h-3.5" />
+                                                                            )}
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent className="text-[10px]">Verify Payment</TooltipContent>
+                                                                </Tooltip>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-7 w-7 text-red-600 hover:bg-red-50"
+                                                                            onClick={() => handleAction(req.id || req._id, 'rejected')}
+                                                                        >
+                                                                            <X className="w-3.5 h-3.5" />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent className="text-[10px]">Reject</TooltipContent>
+                                                                </Tooltip>
+                                                            </>
+                                                        )}
+                                                    </TooltipProvider>
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -245,23 +292,23 @@ export default function PaymentManagementPage() {
 
                         {/* Mobile View */}
                         <div className="md:hidden divide-y divide-gray-100">
-                            {paymentRequests.map((req) => (
-                                <div key={req.id} className="p-4 space-y-4">
+                            {payments?.map((req) => (
+                                <div key={req.id || req._id} className="p-4 space-y-4">
                                     <div className="flex items-center justify-between">
                                         <div className="min-w-0">
-                                            <p className="text-sm font-semibold text-gray-900 truncate">{req.user}</p>
-                                            <p className="text-[10px] text-gray-400 font-mono">{req.id}</p>
+                                            <p className="text-sm font-semibold text-gray-900 truncate">{req.user?.name || 'Unknown'}</p>
+                                            <p className="text-[10px] text-gray-400 font-mono">{req.requestId || req._id}</p>
                                         </div>
-                                        <p className="text-sm font-bold text-blue-600">{req.amount}</p>
+                                        <p className="text-sm font-bold text-blue-600">₹{req.amount.toLocaleString()}</p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4 text-[11px]">
                                         <div>
                                             <p className="text-gray-400 uppercase tracking-wider text-[9px] font-bold">Method</p>
-                                            <p className="font-semibold text-gray-700">{req.method}</p>
+                                            <p className="font-semibold text-gray-700 capitalize">{req.paymentMethod?.replace('_', ' ') || '—'}</p>
                                         </div>
                                         <div>
                                             <p className="text-gray-400 uppercase tracking-wider text-[9px] font-bold">Ref ID</p>
-                                            <p className="font-mono text-gray-500 truncate">{req.refId}</p>
+                                            <p className="font-mono text-gray-500 truncate">{req.transactionReference || '—'}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between pt-2 border-t border-gray-50">
@@ -271,9 +318,17 @@ export default function PaymentManagementPage() {
                                                 <Receipt className="w-3 h-3 mr-1" />
                                                 Proof
                                             </Button>
-                                            {req.status === "pending" && (
-                                                <Button variant="default" size="sm" className="h-7 text-[10px] font-bold bg-green-600">
-                                                    Verify
+                                            {(req.status === "pending" || req.status === "proof_uploaded") && (
+                                                <Button
+                                                    variant="default"
+                                                    size="sm"
+                                                    className="h-7 text-[10px] font-bold bg-green-600"
+                                                    disabled={actionLoading === (req.id || req._id)}
+                                                    onClick={() => handleAction(req.id || req._id, 'approved')}
+                                                >
+                                                    {actionLoading === (req.id || req._id) ? (
+                                                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />
+                                                    ) : "Verify"}
                                                 </Button>
                                             )}
                                         </div>
@@ -285,14 +340,26 @@ export default function PaymentManagementPage() {
                         {/* Pagination */}
                         <CardFooter className="bg-white border-t px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                             <p className="text-[11px] text-gray-500 font-medium">
-                                Showing <span className="text-gray-900 font-bold">6</span> of 84 requests
+                                Showing <span className="text-gray-900 font-bold">{payments?.length || 0}</span> of {pagination?.total || 0} requests
                             </p>
                             <div className="flex items-center gap-1">
-                                <Button variant="outline" size="sm" className="h-8 px-2 text-[11px] font-bold" disabled>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 px-2 text-[11px] font-bold"
+                                    disabled={currentPage === 1}
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                >
                                     <ChevronLeft className="w-3.5 h-3.5 mr-1" />
                                     Prev
                                 </Button>
-                                <Button variant="outline" size="sm" className="h-8 px-2 text-[11px] font-bold">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 px-2 text-[11px] font-bold"
+                                    disabled={currentPage === pagination?.pages}
+                                    onClick={() => setCurrentPage(prev => Math.min(pagination?.pages || 1, prev + 1))}
+                                >
                                     Next
                                     <ChevronRight className="w-3.5 h-3.5 ml-1" />
                                 </Button>
@@ -314,8 +381,8 @@ export default function PaymentManagementPage() {
                                             <DollarSign className="w-6 h-6" />
                                         </div>
                                         <div>
-                                            <SheetTitle className="text-xl font-black text-gray-900">{selectedPayment.amount}</SheetTitle>
-                                            <p className="text-[10px] text-gray-400 font-mono tracking-widest">{selectedPayment.id}</p>
+                                            <SheetTitle className="text-xl font-black text-gray-900">₹{selectedPayment.amount.toLocaleString()}</SheetTitle>
+                                            <p className="text-[10px] text-gray-400 font-mono tracking-widest">{selectedPayment.requestId || selectedPayment._id}</p>
                                             <div className="mt-2">
                                                 <StatusBadge status={selectedPayment.status} />
                                             </div>
@@ -329,11 +396,11 @@ export default function PaymentManagementPage() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="p-4 rounded-xl bg-white border border-gray-100 shadow-sm">
                                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Method</p>
-                                        <p className="text-sm font-bold text-gray-900">{selectedPayment.method}</p>
+                                        <p className="text-sm font-bold text-gray-900 capitalize">{selectedPayment.paymentMethod?.replace('_', ' ') || '—'}</p>
                                     </div>
                                     <div className="p-4 rounded-xl bg-white border border-gray-100 shadow-sm">
                                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Time</p>
-                                        <p className="text-sm font-bold text-gray-900">{selectedPayment.date}</p>
+                                        <p className="text-sm font-bold text-gray-900">{new Date(selectedPayment.createdAt).toLocaleString()}</p>
                                     </div>
                                 </div>
 
@@ -345,11 +412,11 @@ export default function PaymentManagementPage() {
                                     </h3>
                                     <div className="p-4 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center gap-3">
                                         <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
-                                            {selectedPayment.user[0]}
+                                            {selectedPayment.user?.name?.[0] || 'U'}
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="text-sm font-bold text-gray-900">{selectedPayment.user}</p>
-                                            <p className="text-[11px] text-gray-500 truncate">{selectedPayment.email}</p>
+                                            <p className="text-sm font-bold text-gray-900">{selectedPayment.user?.name || 'Unknown'}</p>
+                                            <p className="text-[11px] text-gray-500 truncate">{selectedPayment.user?.email || '—'}</p>
                                         </div>
                                         <Button variant="ghost" size="icon" className="ml-auto text-blue-600">
                                             <ExternalLink className="w-4 h-4" />
@@ -367,7 +434,7 @@ export default function PaymentManagementPage() {
                                         <div className="divide-y divide-gray-50">
                                             <div className="flex justify-between p-4">
                                                 <span className="text-xs text-gray-500 font-medium">Reference ID</span>
-                                                <span className="text-xs font-bold text-gray-900 font-mono tracking-tighter">{selectedPayment.refId}</span>
+                                                <span className="text-xs font-bold text-gray-900 font-mono tracking-tighter">{selectedPayment.transactionReference || '—'}</span>
                                             </div>
                                             <div className="flex justify-between p-4">
                                                 <span className="text-xs text-gray-500 font-medium">Fee (0%)</span>
@@ -375,7 +442,7 @@ export default function PaymentManagementPage() {
                                             </div>
                                             <div className="flex justify-between p-4">
                                                 <span className="text-xs text-gray-500 font-medium">Wallet Balance After</span>
-                                                <span className="text-xs font-bold text-green-600">+ {selectedPayment.amount}</span>
+                                                <span className="text-xs font-bold text-green-600">+ ₹{selectedPayment.amount.toLocaleString()}</span>
                                             </div>
                                         </div>
                                     </Card>
@@ -387,11 +454,16 @@ export default function PaymentManagementPage() {
                                         <Receipt className="w-3 h-3" />
                                         Transaction Proof
                                     </h3>
-                                    <div className="aspect-video w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center gap-2 group hover:border-blue-300 transition-colors">
-                                        <Receipt className="w-10 h-10 text-gray-200 group-hover:text-blue-300" />
-                                        <p className="text-xs font-bold text-gray-400">Transaction Screenshot</p>
-                                        <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold bg-white">View Full Size</Button>
-                                    </div>
+                                    {selectedPayment.paymentProof ? (
+                                        <div className="aspect-video w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center gap-2 group hover:border-blue-300 transition-colors overflow-hidden">
+                                            <img src={`${process.env.NEXT_PUBLIC_APP_URL || ''}${selectedPayment.paymentProof}`} alt="Proof" className="w-full h-full object-contain" />
+                                        </div>
+                                    ) : (
+                                        <div className="aspect-video w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center gap-2 text-gray-400">
+                                            <Receipt className="w-10 h-10 opacity-20" />
+                                            <p className="text-xs font-bold">No proof uploaded</p>
+                                        </div>
+                                    )}
                                     <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl flex gap-3 mt-4">
                                         <AlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                                         <p className="text-[11px] text-blue-900 leading-relaxed font-semibold">
@@ -403,13 +475,25 @@ export default function PaymentManagementPage() {
 
                             {/* Sticky Footer */}
                             <div className="mt-auto p-4 border-t bg-white flex gap-3">
-                                {selectedPayment.status === "pending" ? (
+                                {(selectedPayment.status === "pending" || selectedPayment.status === "proof_uploaded") ? (
                                     <>
-                                        <Button className="flex-1 bg-green-600 hover:bg-green-700 text-xs font-bold h-11 shadow-lg shadow-green-200">
-                                            <Check className="w-4 h-4 mr-2" />
+                                        <Button
+                                            className="flex-1 bg-green-600 hover:bg-green-700 text-xs font-bold h-11 shadow-lg shadow-green-200"
+                                            disabled={actionLoading === (selectedPayment._id || selectedPayment.id)}
+                                            onClick={() => handleAction(selectedPayment._id || selectedPayment.id, 'approved')}
+                                        >
+                                            {actionLoading === (selectedPayment._id || selectedPayment.id) ? (
+                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                                            ) : (
+                                                <Check className="w-4 h-4 mr-2" />
+                                            )}
                                             Confirm Payment
                                         </Button>
-                                        <Button variant="outline" className="flex-1 text-red-600 border-red-100 hover:bg-red-50 text-xs font-bold h-11">
+                                        <Button
+                                            variant="outline"
+                                            className="flex-1 text-red-600 border-red-100 hover:bg-red-50 text-xs font-bold h-11"
+                                            onClick={() => handleAction(selectedPayment._id, 'rejected')}
+                                        >
                                             <XCircle className="w-4 h-4 mr-2" />
                                             Reject
                                         </Button>

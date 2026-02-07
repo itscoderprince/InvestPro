@@ -10,13 +10,14 @@ import {
     CheckCircle,
     AlertCircle,
     Clock,
-    ChevronDown,
-    ChevronUp,
     Info,
     ArrowLeft,
     ShieldCheck,
     FileCheck,
     Home,
+    Loader2,
+    Fingerprint,
+    CreditCard,
 } from "lucide-react";
 
 import {
@@ -45,6 +46,11 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useKYC } from "@/hooks/useApi";
+import { useAuthStore } from "@/store/authStore";
+import { toast } from "sonner";
 
 // File Upload Zone Component
 function FileUploadZone({ label, file, onFileSelect, onRemove, accept = ".jpg,.jpeg,.png,.pdf" }) {
@@ -72,12 +78,12 @@ function FileUploadZone({ label, file, onFileSelect, onRemove, accept = ".jpg,.j
 
     const validateAndSetFile = (selectedFile) => {
         if (selectedFile.size > 5 * 1024 * 1024) {
-            alert("File size must be less than 5MB");
+            toast.error("File size must be less than 5MB");
             return;
         }
         const validTypes = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
         if (!validTypes.includes(selectedFile.type)) {
-            alert("Please upload JPG, PNG, or PDF files only");
+            toast.error("Please upload JPG, PNG, or PDF files only");
             return;
         }
         onFileSelect(selectedFile);
@@ -161,30 +167,104 @@ function FileUploadZone({ label, file, onFileSelect, onRemove, accept = ".jpg,.j
 }
 
 export default function KYCPage() {
-    const [mounted, setMounted] = useState(false);
+    const { refreshUser } = useAuthStore();
+    const { status, kyc, loading: kycLoading, upload, resubmit } = useKYC();
+    const [aadharNumber, setAadharNumber] = useState("");
+    const [panNumber, setPanNumber] = useState("");
     const [aadharFile, setAadharFile] = useState(null);
     const [panFile, setPanFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadSuccess, setUploadSuccess] = useState(false);
-    const [kycStatus, setKycStatus] = useState(null);
+    const [error, setError] = useState(null);
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    const canSubmit = aadharFile && panFile && !isUploading;
+    const canSubmit = aadharNumber.length === 12 && panNumber.length === 10 && aadharFile && panFile && !isUploading;
 
     const handleSubmit = async () => {
-        if (!canSubmit) return;
+        if (!canSubmit) {
+            if (aadharNumber.length !== 12) toast.error("Aadhar number must be 12 digits");
+            if (panNumber.length !== 10) toast.error("PAN number must be 10 characters");
+            return;
+        }
         setIsUploading(true);
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        setIsUploading(false);
-        setUploadSuccess(true);
-        setKycStatus("pending");
+        setError(null);
+
+        try {
+            const formData = new FormData();
+            formData.append('aadharNumber', aadharNumber.trim());
+            formData.append('panNumber', panNumber.trim().toUpperCase());
+            formData.append('aadharDocument', aadharFile);
+            formData.append('panDocument', panFile);
+
+            if (status === 'rejected') {
+                await resubmit(formData);
+            } else {
+                await upload(formData);
+            }
+
+            setUploadSuccess(true);
+            toast.success("KYC documents submitted successfully");
+            await refreshUser();
+        } catch (err) {
+            setError(err.message || 'Failed to upload documents');
+            toast.error(err.message || 'Failed to upload documents');
+        } finally {
+            setIsUploading(false);
+        }
     };
 
-    if (!mounted) return null;
+    if (kycLoading) {
+        return (
+            <div className="min-h-[400px] flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
 
+    // Already approved
+    if (status === 'approved') {
+        return (
+            <div className="max-w-md mx-auto py-12">
+                <Card className="border-none shadow-xl text-center p-8 md:p-12 overflow-hidden relative">
+                    <div className="relative z-10">
+                        <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-8">
+                            <CheckCircle className="w-10 h-10 text-green-500" />
+                        </div>
+                        <h2 className="text-2xl font-black text-gray-900 mb-3">Verification Complete</h2>
+                        <p className="text-sm text-gray-500 mb-10 leading-relaxed">
+                            Your identity has been verified. You have full access to all platform features.
+                        </p>
+                        <Button asChild className="w-full bg-gray-900 hover:bg-black font-bold h-12 shadow-lg">
+                            <Link href="/dashboard">Return to Dashboard</Link>
+                        </Button>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
+
+    // Pending review
+    if (status === 'pending' || status === 'submitted') {
+        return (
+            <div className="max-w-md mx-auto py-12">
+                <Card className="border-none shadow-xl text-center p-8 md:p-12 overflow-hidden relative">
+                    <div className="relative z-10">
+                        <div className="w-20 h-20 bg-yellow-50 rounded-full flex items-center justify-center mx-auto mb-8">
+                            <Clock className="w-10 h-10 text-yellow-500" />
+                        </div>
+                        <h2 className="text-2xl font-black text-gray-900 mb-3">Under Review</h2>
+                        <p className="text-sm text-gray-500 mb-10 leading-relaxed">
+                            Your documents are being reviewed by our compliance team. This usually takes <span className="text-gray-900 font-bold">24-48 hours</span>.
+                        </p>
+                        <Button asChild className="w-full bg-gray-900 hover:bg-black font-bold h-12 shadow-lg">
+                            <Link href="/dashboard">Return to Dashboard</Link>
+                        </Button>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
+
+    // Upload success
     if (uploadSuccess) {
         return (
             <div className="max-w-md mx-auto py-12">
@@ -205,6 +285,9 @@ export default function KYCPage() {
             </div>
         );
     }
+
+    // Rejected - show resubmit form
+    const isResubmit = status === 'rejected';
 
     return (
         <div className="max-w-7xl mx-auto space-y-4 md:space-y-6 pt-0 pb-2 md:pb-4 px-2 md:px-1">
@@ -235,6 +318,17 @@ export default function KYCPage() {
 
             <Progress value={aadharFile && panFile ? 100 : aadharFile || panFile ? 50 : 10} className="h-2 bg-gray-100" />
 
+            {/* Rejection message */}
+            {isResubmit && kyc?.rejectionReason && (
+                <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-sm font-bold text-red-800">Previous submission was rejected</p>
+                        <p className="text-xs text-red-700 mt-1">{kyc.rejectionReason}</p>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 gap-8">
                 <Card className="border-none shadow-sm bg-white overflow-hidden">
                     <CardHeader className="bg-gray-50/50 border-b pb-4">
@@ -243,13 +337,22 @@ export default function KYCPage() {
                                 <FileText className="w-5 h-5" />
                             </div>
                             <div>
-                                <CardTitle className="text-lg font-bold">Document Submission</CardTitle>
+                                <CardTitle className="text-lg font-bold">
+                                    {isResubmit ? 'Resubmit Documents' : 'Document Submission'}
+                                </CardTitle>
                                 <CardDescription className="text-xs font-medium">Clear copies of ID cards required</CardDescription>
                             </div>
                         </div>
                     </CardHeader>
 
                     <CardContent className="space-y-8 pt-8">
+                        {/* Error message */}
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                                {error}
+                            </div>
+                        )}
+
                         {/* Info Box */}
                         <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 flex items-start gap-4 animate-in slide-in-from-top-2 duration-300">
                             <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
@@ -258,6 +361,41 @@ export default function KYCPage() {
                                 <p className="text-xs text-amber-800/80 mt-1 leading-relaxed">
                                     Ensure the Name, Date of Birth, and Document ID are clearly visible and match your profile registration.
                                 </p>
+                            </div>
+                        </div>
+
+                        {/* Identity Numbers */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label htmlFor="aadharNumber" className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Aadhar Number (12 Digits)</Label>
+                                <div className="relative">
+                                    <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <Input
+                                        id="aadharNumber"
+                                        placeholder="1234 5678 9012"
+                                        maxLength={12}
+                                        value={aadharNumber}
+                                        onChange={(e) => setAadharNumber(e.target.value.replace(/\D/g, ""))}
+                                        className="pl-10 h-11 border-gray-200 focus:border-blue-500 transition-all font-mono tracking-widest"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="panNumber" className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">PAN Number (10 Characters)</Label>
+                                <div className="relative">
+                                    <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <Input
+                                        id="panNumber"
+                                        placeholder="ABCDE1234F"
+                                        maxLength={10}
+                                        value={panNumber}
+                                        onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                                        className="pl-10 h-11 border-gray-200 focus:border-blue-500 transition-all font-mono tracking-widest uppercase"
+                                    />
+                                    <p className="text-[10px] text-gray-400 mt-1 pl-1">
+                                        Format: 5 Letters, 4 Digits, 1 Letter (e.g., ABCDE1234F)
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
@@ -311,14 +449,14 @@ export default function KYCPage() {
                         >
                             {isUploading ? (
                                 <span className="flex items-center gap-2">
-                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <Loader2 className="w-4 h-4 animate-spin" />
                                     Submitting Verification...
                                 </span>
                             ) : (
-                                "Submit Identity Documents"
+                                isResubmit ? "Resubmit Identity Documents" : "Submit Identity Documents"
                             )}
                         </Button>
-                        <Button asChild variant="ghost" className="w-full md:w-auto font-bold h-12 text-gray-400">
+                        <Button asChild variant="outline" className="w-full md:w-auto font-bold h-12 text-gray-400">
                             <Link href="/dashboard">
                                 <ArrowLeft className="w-4 h-4 mr-2" />
                                 Go Back

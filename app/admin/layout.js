@@ -12,6 +12,7 @@ import {
     ChevronDown,
 } from "lucide-react";
 import { AdminSidebar } from "@/components/admin-sidebar";
+import { useAdminDashboard } from "@/hooks/useApi";
 import {
     SidebarInset,
     SidebarProvider,
@@ -27,8 +28,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function AdminLayout({ children }) {
-    const [notificationCount] = useState(8);
+    const { data: dashboardData } = useAdminDashboard();
     const [mounted, setMounted] = React.useState(false);
+
+    const pending = dashboardData?.pending || {};
+    const notificationCount = (pending.kyc || 0) + (pending.payments || 0) + (pending.withdrawals || 0) + (pending.tickets || 0);
 
     React.useEffect(() => {
         setMounted(true);

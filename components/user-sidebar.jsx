@@ -39,6 +39,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useAuthStore } from "@/store/authStore"
 
 // Navigation data
 const navData = {
@@ -82,6 +83,7 @@ const navData = {
 
 export function UserSidebar({ ...props }) {
     const pathname = usePathname()
+    const { user, logout } = useAuthStore()
     const [mounted, setMounted] = React.useState(false)
 
     React.useEffect(() => {
@@ -215,14 +217,14 @@ export function UserSidebar({ ...props }) {
                                         size="lg"
                                         className="data-[state=open]:bg-white/5 data-[state=open]:text-white hover:bg-white/5 hover:text-white"
                                     >
-                                        <div className="flex aspect-square size-8 items-center justify-center rounded-full bg-gradient-to-br from-[#0f172a] to-[#334155] text-white text-sm font-bold">
-                                            JD
+                                        <div className="flex aspect-square size-8 items-center justify-center rounded-full bg-gradient-to-br from-[#2563eb] to-[#7c3aed] text-white text-sm font-bold uppercase">
+                                            {user?.name?.charAt(0) || "U"}
                                         </div>
                                         <div className="grid flex-1 text-left text-sm leading-tight">
-                                            <span className="truncate font-semibold text-white">John Doe</span>
+                                            <span className="truncate font-semibold text-white">{user?.name || "User"}</span>
                                             <span className="truncate text-xs text-green-500 flex items-center gap-1">
                                                 <ShieldCheck className="w-3 h-3" />
-                                                Verified
+                                                <span className="capitalize">{user?.kycStatus || "Not Verified"}</span>
                                             </span>
                                         </div>
                                         <ChevronsUpDown className="ml-auto size-4 text-gray-400" />
@@ -247,7 +249,10 @@ export function UserSidebar({ ...props }) {
                                         </Link>
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer">
+                                    <DropdownMenuItem
+                                        onClick={logout}
+                                        className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+                                    >
                                         <LogOut className="mr-2 size-4" />
                                         Logout
                                     </DropdownMenuItem>
@@ -255,12 +260,12 @@ export function UserSidebar({ ...props }) {
                             </DropdownMenu>
                         ) : (
                             <SidebarMenuButton size="lg" className="hover:bg-white/5 hover:text-white">
-                                <div className="flex aspect-square size-8 items-center justify-center rounded-full bg-gradient-to-br from-[#0f172a] to-[#334155] text-white text-sm font-bold">
-                                    JD
+                                <div className="flex aspect-square size-8 items-center justify-center rounded-full bg-gradient-to-br from-[#0f172a] to-[#334155] text-white text-sm font-bold uppercase">
+                                    U
                                 </div>
                                 <div className="grid flex-1 text-left text-sm leading-tight">
-                                    <span className="truncate font-semibold text-white">John Doe</span>
-                                    <span className="truncate text-xs text-gray-400">john@example.com</span>
+                                    <span className="truncate font-semibold text-white">Guest</span>
+                                    <span className="truncate text-xs text-gray-400">Loading profile...</span>
                                 </div>
                                 <ChevronsUpDown className="ml-auto size-4 text-gray-400" />
                             </SidebarMenuButton>

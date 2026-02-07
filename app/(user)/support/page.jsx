@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
     MessageSquare,
     Plus,
@@ -21,6 +21,7 @@ import {
     HelpCircle,
     History,
     Home,
+    Loader2,
 } from "lucide-react";
 
 import {
@@ -58,6 +59,8 @@ import {
     TabsTrigger,
 } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { useTickets } from "@/hooks/useApi";
+import { ticketsApi } from "@/lib/api";
 
 // Categories
 const categories = [
@@ -66,52 +69,15 @@ const categories = [
     { value: "withdrawal", label: "Withdrawal problems" },
     { value: "investment", label: "Investment queries" },
     { value: "account", label: "Account issues" },
+    { value: "technical", label: "Technical issues" },
     { value: "other", label: "Other" },
-];
-
-// Sample tickets data
-const sampleTickets = [
-    {
-        id: "TKT-1234",
-        subject: "Unable to complete KYC verification",
-        category: "kyc",
-        description: "I have been trying to upload my Aadhar card for the past 2 days but the upload keeps failing. I have tried different browsers and file sizes but nothing works.",
-        status: "in_progress",
-        createdAt: "2024-01-28T10:30:00",
-        adminReply: {
-            message: "Hi! We apologize for the inconvenience. Our team is looking into this issue. Please try clearing your browser cache and upload a file under 2MB in JPG format. If the issue persists, we'll escalate this immediately.",
-            adminName: "Support Team",
-            repliedAt: "2024-01-28T14:45:00",
-        },
-    },
-    {
-        id: "TKT-1235",
-        subject: "Withdrawal pending for 5 days",
-        category: "withdrawal",
-        description: "My withdrawal request was submitted 5 days ago but it's still showing as pending. Please look into this urgently as I need the funds.",
-        status: "open",
-        createdAt: "2024-01-26T09:15:00",
-        adminReply: null,
-    },
-    {
-        id: "TKT-1236",
-        subject: "Investment return calculation query",
-        category: "investment",
-        description: "I want to understand how the weekly returns are calculated. The returns seem different from what was shown on the index card.",
-        status: "closed",
-        createdAt: "2024-01-20T16:00:00",
-        adminReply: {
-            message: "The weekly returns shown are average returns. Actual returns may vary slightly based on market conditions. Your returns are within the expected range. Please refer to our FAQ section for detailed calculation methodology.",
-            adminName: "Support Team",
-            repliedAt: "2024-01-21T11:30:00",
-        },
-    },
 ];
 
 // Status configuration
 const statusConfig = {
     open: { label: "Open", variant: "blue", color: "bg-blue-500" },
     in_progress: { label: "In Progress", variant: "warning", color: "bg-amber-500" },
+    resolved: { label: "Resolved", variant: "secondary", color: "bg-green-500" },
     closed: { label: "Closed", variant: "secondary", color: "bg-gray-400" },
 };
 
@@ -128,65 +94,69 @@ function formatRelativeTime(dateString) {
 }
 
 export default function SupportPage() {
-    const [mounted, setMounted] = useState(false);
+    const { tickets, loading, error, refetch } = useTickets();
     const [showForm, setShowForm] = useState(false);
     const [activeTab, setActiveTab] = useState("all");
     const [expandedTicket, setExpandedTicket] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [tickets, setTickets] = useState(sampleTickets);
+    const [submitError, setSubmitError] = useState(null);
 
     // Form state
     const [formData, setFormData] = useState({
         subject: "",
         category: "",
         description: "",
-        attachment: null,
     });
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
 
     const filteredTickets = activeTab === "all"
         ? tickets
         : tickets.filter((t) => t.status === activeTab);
 
-    const canSubmit = formData.subject.trim() && formData.category && formData.description.trim();
+    const canSubmit = formData.subject.trim().length >= 5 && formData.category && formData.description.trim().length >= 20;
 
     const handleInputChange = (field, value) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
-    };
-
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (file && file.size <= 5 * 1024 * 1024) {
-            setFormData((prev) => ({ ...prev, attachment: file }));
-        }
     };
 
     const handleSubmit = async () => {
         if (!canSubmit) return;
 
         setIsSubmitting(true);
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        setSubmitError(null);
 
-        const newTicket = {
-            id: `TKT-${Date.now().toString().slice(-4)}`,
-            subject: formData.subject,
-            category: formData.category,
-            description: formData.description,
-            status: "open",
-            createdAt: new Date().toISOString(),
-            adminReply: null,
-        };
+        try {
+            await ticketsApi.create({
+                subject: formData.subject,
+                category: formData.category,
+                description: formData.description,
+            });
 
-        setTickets((prev) => [newTicket, ...prev]);
-        setFormData({ subject: "", category: "", description: "", attachment: null });
-        setIsSubmitting(false);
-        setShowForm(false);
+            setFormData({ subject: "", category: "", description: "" });
+            setShowForm(false);
+            refetch();
+        } catch (err) {
+            setSubmitError(err.message || 'Failed to create ticket');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
-    if (!mounted) return null;
+    const handleCloseTicket = async (ticketId) => {
+        try {
+            await ticketsApi.close(ticketId);
+            refetch();
+        } catch (err) {
+            console.error('Failed to close ticket:', err);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="min-h-[400px] flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto pt-0 pb-2 md:pb-4 px-2 md:px-1">
@@ -227,9 +197,20 @@ export default function SupportPage() {
                         <CardDescription>Provide details about your issue for faster processing.</CardDescription>
                     </CardHeader>
                     <CardContent className="pt-6 space-y-6">
+                        {submitError && (
+                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                                {submitError}
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Issue Subject</label>
+                                <div className="flex justify-between items-center ml-1">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Issue Subject</label>
+                                    {formData.subject.length > 0 && formData.subject.length < 5 && (
+                                        <span className="text-[10px] font-bold text-amber-500">Min 5 chars</span>
+                                    )}
+                                </div>
                                 <Input
                                     value={formData.subject}
                                     onChange={(e) => handleInputChange("subject", e.target.value)}
@@ -258,40 +239,18 @@ export default function SupportPage() {
                         <div className="space-y-2">
                             <div className="flex justify-between items-center ml-1">
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Description</label>
-                                <span className="text-[10px] font-bold text-gray-300">{formData.description.length}/500</span>
+                                <span className={`text-[10px] font-bold ${formData.description.length > 0 && formData.description.length < 20 ? 'text-amber-500' : 'text-gray-300'}`}>
+                                    {formData.description.length < 20 ? `${20 - formData.description.length} more needed` : `${formData.description.length}/500`}
+                                </span>
                             </div>
                             <Textarea
                                 value={formData.description}
                                 onChange={(e) => handleInputChange("description", e.target.value)}
                                 placeholder="Describe your issue in detail..."
                                 rows={4}
+                                maxLength={500}
                                 className="border-gray-200 focus:border-blue-500 rounded-xl resize-none"
                             />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Attachments (Optional)</label>
-                            {formData.attachment ? (
-                                <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-xl animate-in zoom-in-95 duration-200">
-                                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border shadow-sm">
-                                        <FileText className="w-5 h-5 text-blue-600" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-bold text-gray-900 truncate">{formData.attachment.name}</p>
-                                        <p className="text-[10px] text-gray-500">Ready to upload</p>
-                                    </div>
-                                    <Button variant="ghost" size="icon" onClick={() => handleInputChange("attachment", null)} className="hover:bg-blue-100 rounded-lg h-8 w-8">
-                                        <X className="w-4 h-4 text-gray-400" />
-                                    </Button>
-                                </div>
-                            ) : (
-                                <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50/50 transition-all group">
-                                    <Paperclip className="w-6 h-6 text-gray-300 group-hover:text-blue-500 mb-2" />
-                                    <span className="text-xs font-bold text-gray-400 group-hover:text-blue-600">Attach Screenshot or PDF</span>
-                                    <span className="text-[10px] text-gray-300 mt-1">Maximum size: 5MB</span>
-                                    <input type="file" accept="image/*,.pdf" onChange={handleFileChange} className="hidden" />
-                                </label>
-                            )}
                         </div>
                     </CardContent>
                     <CardFooter className="bg-gray-50/50 border-t p-6">
@@ -302,7 +261,7 @@ export default function SupportPage() {
                         >
                             {isSubmitting ? (
                                 <span className="flex items-center gap-2">
-                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <Loader2 className="w-4 h-4 animate-spin" />
                                     Submitting...
                                 </span>
                             ) : (
@@ -335,18 +294,18 @@ export default function SupportPage() {
                 <TabsContent value={activeTab} className="space-y-4 animate-in fade-in duration-300 outline-none">
                     {filteredTickets.length > 0 ? (
                         filteredTickets.map((ticket) => (
-                            <Card key={ticket.id} className="border-none shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group">
+                            <Card key={ticket._id} className="border-none shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group">
                                 <div className="flex flex-col">
                                     <div
-                                        onClick={() => setExpandedTicket(expandedTicket === ticket.id ? null : ticket.id)}
+                                        onClick={() => setExpandedTicket(expandedTicket === ticket._id ? null : ticket._id)}
                                         className="p-5 flex items-start justify-between cursor-pointer"
                                     >
                                         <div className="flex-1 min-w-0 pr-4">
                                             <div className="flex items-center gap-2 mb-2">
-                                                <Badge className={`${statusConfig[ticket.status].color} hover:${statusConfig[ticket.status].color} text-white border-none font-bold text-[10px]`}>
-                                                    {statusConfig[ticket.status].label.toUpperCase()}
+                                                <Badge className={`${statusConfig[ticket.status]?.color || 'bg-gray-500'} hover:${statusConfig[ticket.status]?.color || 'bg-gray-500'} text-white border-none font-bold text-[10px]`}>
+                                                    {(statusConfig[ticket.status]?.label || ticket.status).toUpperCase()}
                                                 </Badge>
-                                                <span className="text-[10px] font-black text-gray-300 tracking-tighter">#{ticket.id}</span>
+                                                <span className="text-[10px] font-black text-gray-300 tracking-tighter">#{ticket.ticketNumber || ticket._id?.slice(-6)}</span>
                                             </div>
                                             <h3 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate">{ticket.subject}</h3>
                                             <div className="flex items-center gap-3 mt-2">
@@ -359,12 +318,12 @@ export default function SupportPage() {
                                                 </span>
                                             </div>
                                         </div>
-                                        <div className={`p-2 rounded-lg bg-gray-50 text-gray-400 group-hover:text-blue-600 transition-all ${expandedTicket === ticket.id ? 'bg-blue-50 text-blue-600 rotate-180' : ''}`}>
+                                        <div className={`p-2 rounded-lg bg-gray-50 text-gray-400 group-hover:text-blue-600 transition-all ${expandedTicket === ticket._id ? 'bg-blue-50 text-blue-600 rotate-180' : ''}`}>
                                             <ChevronDown className="w-5 h-5" />
                                         </div>
                                     </div>
 
-                                    {expandedTicket === ticket.id && (
+                                    {expandedTicket === ticket._id && (
                                         <div className="px-5 pb-6 space-y-6 animate-in slide-in-from-top-2 duration-300">
                                             <Separator className="bg-gray-100" />
 
@@ -379,20 +338,22 @@ export default function SupportPage() {
                                                     </div>
                                                 </div>
 
-                                                {ticket.adminReply ? (
-                                                    <div className="flex gap-4">
-                                                        <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/20">
-                                                            <MessageCircle className="w-5 h-5 text-white" />
-                                                        </div>
-                                                        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex-1">
-                                                            <div className="flex items-center justify-between mb-2">
-                                                                <p className="text-xs font-black text-blue-600 uppercase tracking-widest">Support Response</p>
-                                                                <span className="text-[10px] font-bold text-blue-400">{formatRelativeTime(ticket.adminReply.repliedAt)}</span>
+                                                {ticket.messages && ticket.messages.length > 0 ? (
+                                                    ticket.messages.filter(m => m.sender === 'admin').map((msg, idx) => (
+                                                        <div key={idx} className="flex gap-4">
+                                                            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/20">
+                                                                <MessageCircle className="w-5 h-5 text-white" />
                                                             </div>
-                                                            <p className="text-sm text-blue-900 leading-relaxed font-medium">{ticket.adminReply.message}</p>
+                                                            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex-1">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <p className="text-xs font-black text-blue-600 uppercase tracking-widest">Support Response</p>
+                                                                    <span className="text-[10px] font-bold text-blue-400">{formatRelativeTime(msg.createdAt)}</span>
+                                                                </div>
+                                                                <p className="text-sm text-blue-900 leading-relaxed font-medium">{msg.content}</p>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                ) : (
+                                                    ))
+                                                ) : ticket.status === 'open' ? (
                                                     <div className="flex gap-4 pr-12">
                                                         <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
                                                             <Clock className="w-5 h-5 text-amber-500" />
@@ -402,12 +363,16 @@ export default function SupportPage() {
                                                             <p className="text-[10px] text-amber-600 mt-1">Our team typically responds within 4 hours.</p>
                                                         </div>
                                                     </div>
-                                                )}
+                                                ) : null}
                                             </div>
 
-                                            {ticket.status !== "closed" && ticket.adminReply && (
+                                            {ticket.status !== "closed" && ticket.status !== "resolved" && ticket.messages?.some(m => m.sender === 'admin') && (
                                                 <div className="flex justify-end pt-2">
-                                                    <Button variant="outline" className="text-green-600 border-green-200 hover:bg-green-50 font-bold text-xs h-9">
+                                                    <Button
+                                                        variant="outline"
+                                                        className="text-green-600 border-green-200 hover:bg-green-50 font-bold text-xs h-9"
+                                                        onClick={() => handleCloseTicket(ticket._id)}
+                                                    >
                                                         <CheckCircle className="w-3 h-3 mr-2" />
                                                         Mark as Resolved
                                                     </Button>

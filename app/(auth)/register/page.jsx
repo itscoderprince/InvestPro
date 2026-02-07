@@ -4,7 +4,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, User, Mail, Phone, Lock, UserPlus, Gift } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,9 +24,12 @@ import {
 } from "@/components/ui/field";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
 import { registerSchema } from "@/lib/validations/auth";
+import { useAuthStore } from "@/store/authStore";
 
 export default function RegisterPage() {
     const [isLoading, setIsLoading] = useState(false);
+    const { register: registerUser } = useAuthStore();
+    const router = useRouter();
 
     const {
         register,
@@ -49,10 +54,13 @@ export default function RegisterPage() {
     const onSubmit = async (data) => {
         setIsLoading(true);
         try {
-            console.log("Registration submitted:", data);
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-        } catch (error) {
-            console.error("Registration error:", error);
+            const response = await registerUser(data);
+            toast.success("Account created! Redirecting...");
+
+            // Redirect to dashboard
+            router.push('/dashboard');
+        } catch (err) {
+            toast.error(err.message || "Registration failed. Please try again.");
         } finally {
             setIsLoading(false);
         }
@@ -69,6 +77,7 @@ export default function RegisterPage() {
             <CardContent>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                     <FieldGroup>
+
                         <Field>
                             <FieldLabel htmlFor="fullName" icon={User}>Full Name</FieldLabel>
                             <Input
@@ -108,7 +117,7 @@ export default function RegisterPage() {
                                 {...register("phone")}
                                 id="phone"
                                 type="tel"
-                                placeholder="+1 (555) 000-0000"
+                                placeholder="+91 98765 43210"
                                 className="bg-muted/30 focus-visible:bg-white transition-colors"
                                 required
                             />
@@ -161,6 +170,32 @@ export default function RegisterPage() {
                                 placeholder="REF12345"
                                 className="bg-muted/30 focus-visible:bg-white transition-colors"
                             />
+                        </Field>
+
+                        <Field>
+                            <div className="flex items-start gap-2">
+                                <input
+                                    {...register("agreeTerms")}
+                                    type="checkbox"
+                                    id="agreeTerms"
+                                    className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                <label htmlFor="agreeTerms" className="text-sm text-muted-foreground">
+                                    I agree to the{" "}
+                                    <Link href="/terms" className="text-primary underline-offset-4 hover:underline">
+                                        Terms & Conditions
+                                    </Link>{" "}
+                                    and{" "}
+                                    <Link href="/privacy" className="text-primary underline-offset-4 hover:underline">
+                                        Privacy Policy
+                                    </Link>
+                                </label>
+                            </div>
+                            {errors.agreeTerms && (
+                                <FieldDescription className="text-destructive font-medium">
+                                    {errors.agreeTerms.message}
+                                </FieldDescription>
+                            )}
                         </Field>
 
                         <Button type="submit" disabled={isLoading} className="w-full h-11">

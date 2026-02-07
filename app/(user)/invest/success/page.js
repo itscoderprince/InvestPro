@@ -39,7 +39,7 @@ export default function InvestmentSuccessPage() {
                         transition={{ delay: 0.2 }}
                         className="text-3xl md:text-5xl font-black text-slate-900 dark:text-white mb-4"
                     >
-                        Investment Request Submitted! 🎉
+                        Investment Request Submitted! ðŸŽ‰
                     </motion.h1>
                     <motion.p
                         initial={{ y: 20, opacity: 0 }}
@@ -83,11 +83,11 @@ export default function InvestmentSuccessPage() {
                                         </div>
                                         <div className="flex justify-between items-center text-sm font-bold">
                                             <span className="text-slate-500">Amount</span>
-                                            <span className="text-slate-900 dark:text-white">₹25,000</span>
+                                            <span className="text-slate-900 dark:text-white">â‚¹25,000</span>
                                         </div>
                                         <div className="flex justify-between items-center text-sm font-bold">
                                             <span className="text-slate-500">Weekly Return</span>
-                                            <span className="text-emerald-500">₹1,125</span>
+                                            <span className="text-emerald-500">â‚¹1,125</span>
                                         </div>
                                     </div>
                                 </div>
@@ -120,7 +120,7 @@ export default function InvestmentSuccessPage() {
                                                 <p className="text-sm font-black text-slate-900 dark:text-white leading-none mb-1">{item.title}</p>
                                                 <div className="flex items-center gap-2 uppercase tracking-widest">
                                                     <span className={cn("text-[8px] font-black", item.color)}>{item.status}</span>
-                                                    <span className="text-[10px] text-slate-300">•</span>
+                                                    <span className="text-[10px] text-slate-300">â€¢</span>
                                                     <span className="text-[8px] font-bold text-slate-400 whitespace-nowrap">{item.duration}</span>
                                                 </div>
                                             </div>

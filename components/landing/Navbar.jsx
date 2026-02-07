@@ -14,9 +14,19 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuthStore } from "@/store/authStore";
+
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const { user, isAuthenticated, logout } = useAuthStore();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -78,18 +88,62 @@ const Navbar = () => {
             </button>
           </div>
 
-          <Link
-            href="/login"
-            className="hidden sm:block text-sm font-bold text-slate-700 dark:text-slate-300 hover:text-blue-600 transition-colors px-4"
-          >
-            Login
-          </Link>
-          <Button
-            asChild
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-500/25 rounded-full px-6 transition-all hover:scale-105"
-          >
-            <Link href="/register">Sign Up</Link>
-          </Button>
+          {isAuthenticated ? (
+            <div className="flex items-center gap-4">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full transition-colors outline-none">
+                    <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-md uppercase">
+                      {user?.name?.charAt(0) || "U"}
+                    </div>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 mt-2 rounded-2xl border-slate-200 dark:border-white/10 shadow-2xl">
+                  <div className="px-4 py-3 border-b border-slate-100 dark:border-white/5">
+                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{user?.name}</p>
+                    <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                  </div>
+                  <div className="p-2">
+                    <DropdownMenuItem asChild>
+                      <Link href={user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'} className="flex items-center p-2 rounded-xl cursor-pointer">
+                        <TrendingUp className="mr-2 h-4 w-4 text-blue-500" />
+                        <span className="font-medium">Dashboard</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/kyc" className="flex items-center p-2 rounded-xl cursor-pointer">
+                        <Shield className="mr-2 h-4 w-4 text-emerald-500" />
+                        <span className="font-medium">My Profile</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="my-1 bg-slate-100 dark:bg-white/5" />
+                    <DropdownMenuItem
+                      onClick={logout}
+                      className="flex items-center p-2 rounded-xl text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-900/20 cursor-pointer"
+                    >
+                      <X className="mr-2 h-4 w-4" />
+                      <span className="font-bold">Sign Out</span>
+                    </DropdownMenuItem>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="hidden sm:block text-sm font-bold text-slate-700 dark:text-slate-300 hover:text-blue-600 transition-colors px-4"
+              >
+                Login
+              </Link>
+              <Button
+                asChild
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-500/25 rounded-full px-6 transition-all hover:scale-105"
+              >
+                <Link href="/register">Sign Up</Link>
+              </Button>
+            </>
+          )}
 
           {/* Mobile Menu Button */}
           <button
@@ -120,19 +174,42 @@ const Navbar = () => {
             </Link>
           ))}
           <div className="pt-4 flex flex-col gap-3">
-            <Link
-              href="/login"
-              className="flex items-center justify-center h-12 text-base font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-white/5 rounded-2xl"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Login
-            </Link>
-            <Button
-              asChild
-              className="bg-blue-600 hover:bg-blue-700 text-white h-12 rounded-2xl text-base font-bold shadow-lg shadow-blue-500/25"
-            >
-              <Link href="/register">Sign Up</Link>
-            </Button>
+            {isAuthenticated ? (
+              <>
+                <Link
+                  href={user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'}
+                  className="flex items-center justify-center h-12 text-base font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/20 rounded-2xl"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Go to Dashboard
+                </Link>
+                <button
+                  onClick={() => {
+                    logout();
+                    setIsMenuOpen(false);
+                  }}
+                  className="flex items-center justify-center h-12 text-base font-bold text-rose-600 bg-rose-50 dark:bg-rose-900/20 rounded-2xl"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="flex items-center justify-center h-12 text-base font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-white/5 rounded-2xl"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Login
+                </Link>
+                <Button
+                  asChild
+                  className="bg-blue-600 hover:bg-blue-700 text-white h-12 rounded-2xl text-base font-bold shadow-lg shadow-blue-500/25"
+                >
+                  <Link href="/register">Sign Up</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>

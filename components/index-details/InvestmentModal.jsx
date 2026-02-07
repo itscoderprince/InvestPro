@@ -44,6 +44,7 @@ import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
 import jsPDF from "jspdf";
 import { useDropzone } from "react-dropzone";
+import { paymentsApi } from "@/lib/api";
 
 const StepTracker = ({ currentStep }) => {
     const steps = [
@@ -103,6 +104,8 @@ const InvestmentModal = ({ isOpen, onClose, indexData }) => {
     const [paymentMethod, setPaymentMethod] = useState("bank");
     const [uploadProof, setUploadProof] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [paymentRequestId, setPaymentRequestId] = useState(null);
+    const [paymentError, setPaymentError] = useState(null);
 
     const nextStep = () => setStep(s => Math.min(s + 1, 4));
     const prevStep = () => setStep(s => Math.max(s - 1, 1));
@@ -124,11 +127,31 @@ const InvestmentModal = ({ isOpen, onClose, indexData }) => {
 
     const handleInvest = async () => {
         setIsSubmitting(true);
-        // Simulate API call
-        await new Promise(r => setTimeout(r, 1500));
-        setIsSubmitting(false);
-        nextStep();
-        toast.success("Investment request submitted successfully!");
+        setPaymentError(null);
+
+        try {
+            // Create payment request via API
+            const response = await paymentsApi.createRequest({
+                indexId: indexData?._id,
+                amount,
+                duration,
+                paymentMethod,
+            });
+
+            if (response && response._id) {
+                setPaymentRequestId(response._id);
+                toast.success("Investment request submitted successfully!");
+                nextStep();
+            } else {
+                throw new Error("Failed to create payment request");
+            }
+        } catch (error) {
+            console.error("Payment request error:", error);
+            setPaymentError(error.message || "Failed to submit investment request");
+            toast.error(error.message || "Failed to submit investment request");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const downloadReceipt = () => {
@@ -144,9 +167,26 @@ const InvestmentModal = ({ isOpen, onClose, indexData }) => {
         doc.save("InvestPro-Receipt.pdf");
     };
 
-    const onDrop = (acceptedFiles) => {
-        setUploadProof(acceptedFiles[0]);
-        toast.success("Payment proof uploaded!");
+    const onDrop = async (acceptedFiles) => {
+        const file = acceptedFiles[0];
+        setUploadProof(file);
+
+        // If we have a payment request ID, upload the proof immediately
+        if (paymentRequestId && file) {
+            try {
+                const formData = new FormData();
+                formData.append('paymentProof', file);
+                formData.append('paymentRequestId', paymentRequestId);
+
+                await paymentsApi.uploadProof(formData);
+                toast.success("Payment proof uploaded successfully!");
+            } catch (error) {
+                console.error("Upload error:", error);
+                toast.error("Failed to upload proof, please try again");
+            }
+        } else {
+            toast.success("Payment proof ready to upload!");
+        }
     };
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({

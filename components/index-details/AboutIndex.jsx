@@ -2,7 +2,7 @@
 
 import { CheckCircle2 } from "lucide-react";
 
-const AboutIndex = () => {
+const AboutIndex = ({ description }) => {
     const features = [
         "Weekly returns of 3-5%",
         "Expert-managed portfolio",
@@ -14,24 +14,23 @@ const AboutIndex = () => {
     return (
         <section className="bg-white dark:bg-slate-900 p-8 md:p-10 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-2xl shadow-blue-500/5">
             <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-8">
-                What is Tech Growth Index?
+                About this Node
             </h2>
 
             <div className="space-y-6 text-slate-600 dark:text-slate-400 font-medium leading-relaxed max-w-3xl">
                 <p>
-                    The Tech Growth Index focuses on high-growth technology companies with strong fundamentals.
-                    Our expert team analyzes market trends weekly to optimize returns while managing risk effectively.
+                    {description || "The Tech Growth Index focuses on high-growth technology companies with strong fundamentals. Our expert team analyzes market trends weekly to optimize returns while managing risk effectively."}
                 </p>
 
                 <p>
-                    This index is ideal for investors looking for consistent weekly returns with moderate risk exposure.
-                    We invest in established tech companies as well as emerging startups with proven track records.
+                    This investment node is ideal for investors looking for consistent weekly returns with moderate risk exposure.
+                    We invest in established companies as well as emerging opportunities with proven track records.
                 </p>
 
                 <p>
-                    All investments are managed by certified financial experts with 10+ years of experience
-                    in technology sector investing. We prioritize capital preservation while capturing the
-                    upside of the most innovative sector in the global economy.
+                    All investments are managed by certified experts with significant experience
+                    in the field. We prioritize capital preservation while capturing the
+                    upside of the most innovative sectors in the economy.
                 </p>
             </div>
 

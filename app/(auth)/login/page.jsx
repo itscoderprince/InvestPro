@@ -1,10 +1,13 @@
 "use client";
+// Forced re-compile: 2026-02-07
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useState } from "react";
-import { Loader2, Mail, Lock, LogIn, Github } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Loader2, Mail, Lock, LogIn } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,12 +22,14 @@ import {
   FieldDescription,
   FieldGroup,
   FieldLabel,
-  FieldSeparator
 } from "@/components/ui/field";
 import { loginSchema } from "@/lib/validations/auth";
+import { useAuthStore } from "@/store/authStore";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuthStore();
+  const router = useRouter();
 
   const {
     register,
@@ -41,10 +46,17 @@ export default function LoginPage() {
   const onSubmit = async (data) => {
     setIsLoading(true);
     try {
-      console.log("Login submitted:", data);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    } catch (error) {
-      console.error("Login error:", error);
+      const response = await login(data);
+      toast.success("Login successful! Redirecting...");
+
+      // Redirect based on role
+      if (response.user.role === 'admin') {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (err) {
+      toast.error(err.message || "Login failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -61,6 +73,7 @@ export default function LoginPage() {
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <FieldGroup>
+
             <Field>
               <FieldLabel htmlFor="email" icon={Mail}>Email Address</FieldLabel>
               <Input

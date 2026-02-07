@@ -61,32 +61,7 @@ import {
 } from "@/components/ui/chart";
 import { Pie, PieChart, Label, Cell } from "recharts";
 
-// Sample data
-const recentActivity = [
-    { id: 1, user: "Rahul Sharma", email: "rahul@email.com", action: "New Investment", amount: "₹15,000", status: "pending", date: "2 min ago", type: "investment" },
-    { id: 2, user: "Priya Singh", email: "priya@email.com", action: "Withdrawal Request", amount: "₹5,000", status: "pending", date: "5 min ago", type: "withdrawal" },
-    { id: 3, user: "Amit Kumar", email: "amit@email.com", action: "KYC Submission", amount: "—", status: "pending", date: "12 min ago", type: "kyc" },
-    { id: 4, user: "Sneha Patel", email: "sneha@email.com", action: "New Investment", amount: "₹25,000", status: "approved", date: "1 hour ago", type: "investment" },
-    { id: 5, user: "Vikram Roy", email: "vikram@email.com", action: "Withdrawal Request", amount: "₹8,000", status: "approved", date: "2 hours ago", type: "withdrawal" },
-    { id: 6, user: "Anita Gupta", email: "anita@email.com", action: "KYC Submission", amount: "—", status: "rejected", date: "3 hours ago", type: "kyc" },
-];
-
-const userGrowthData = [
-    { month: "Aug", users: 850 },
-    { month: "Sep", users: 980 },
-    { month: "Oct", users: 1120 },
-    { month: "Nov", users: 1280 },
-    { month: "Dec", users: 1420 },
-    { month: "Jan", users: 1547 },
-];
-
-const investmentDistribution = [
-    { name: "Tech Growth", value: 35, color: "#2563eb", fill: "var(--color-tech)" },
-    { name: "Stability", value: 28, color: "#10b981", fill: "var(--color-stability)" },
-    { name: "High Yield", value: 22, color: "#7c3aed", fill: "var(--color-yield)" },
-    { name: "Balanced", value: 15, color: "#f59e0b", fill: "var(--color-balanced)" },
-];
-
+// Chart config
 const chartConfig = {
     value: {
         label: "Percentage",
@@ -109,49 +84,6 @@ const chartConfig = {
     },
 };
 
-const statsData = [
-    {
-        title: "Total Users",
-        value: "1,547",
-        description: "Active platform users",
-        trend: "+12%",
-        trendUp: true,
-        icon: Users,
-        iconBg: "bg-blue-50",
-        iconColor: "text-blue-600",
-    },
-    {
-        title: "Total Investments",
-        value: "₹45,23,000",
-        description: "143 active investments",
-        trend: "+8.5%",
-        trendUp: true,
-        icon: TrendingUp,
-        iconBg: "bg-green-50",
-        iconColor: "text-green-600",
-    },
-    {
-        title: "Pending Approvals",
-        value: "23",
-        description: "8 KYC • 10 Payments • 5 Withdrawals",
-        trend: null,
-        trendUp: false,
-        icon: Clock,
-        iconBg: "bg-orange-50",
-        iconColor: "text-orange-600",
-    },
-    {
-        title: "This Week's Returns",
-        value: "₹1,85,000",
-        description: "Distributed to users",
-        trend: "+5.2%",
-        trendUp: true,
-        icon: DollarSign,
-        iconBg: "bg-purple-50",
-        iconColor: "text-purple-600",
-    },
-];
-
 const quickActions = [
     { icon: FileCheck, label: "Approve KYC", color: "bg-blue-600 hover:bg-blue-700", href: "/admin/kyc" },
     { icon: CreditCard, label: "Process Payments", color: "bg-green-600 hover:bg-green-700", href: "/admin/payments" },
@@ -159,32 +91,119 @@ const quickActions = [
     { icon: MessageSquare, label: "View Tickets", color: "bg-orange-500 hover:bg-orange-600", href: "/admin/tickets" },
 ];
 
-const pendingItems = [
-    { icon: FileCheck, iconColor: "text-orange-600", bgColor: "bg-orange-100", title: "KYC Pending", count: "8", href: "/admin/kyc" },
-    { icon: CreditCard, iconColor: "text-blue-600", bgColor: "bg-blue-100", title: "Payment Requests", count: "10", href: "/admin/payments" },
-    { icon: Wallet, iconColor: "text-purple-600", bgColor: "bg-purple-100", title: "Withdrawals", count: "5", href: "/admin/withdrawals" },
-];
+import { useAdminDashboard } from "@/hooks/useApi";
+import { formatCurrency } from "@/lib/utils"; // Assuming a utility for currency or just use inline
 
 export default function AdminDashboardPage() {
+    const { data, loading, error, refetch } = useAdminDashboard();
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await refetch();
         setIsRefreshing(false);
     };
 
-    // Chart calculations
-    const maxValue = Math.max(...userGrowthData.map((d) => d.users));
-    const minValue = Math.min(...userGrowthData.map((d) => d.users));
-    const range = maxValue - minValue;
-    const points = userGrowthData.map((d, i) => {
-        const x = (i / (userGrowthData.length - 1)) * 100;
-        const y = 100 - ((d.users - minValue) / range) * 80;
-        return `${x},${y}`;
-    }).join(" ");
+    if (loading && !data) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+                <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+                <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">Loading Dashboard Data...</p>
+            </div>
+        );
+    }
 
-    const totalInvestmentValue = "₹45.2L";
+    if (error) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+                <AlertCircle className="w-8 h-8 text-red-600" />
+                <p className="text-sm font-bold text-red-500">Error: {error}</p>
+                <Button onClick={() => refetch()}>Try Again</Button>
+            </div>
+        );
+    }
+
+    const { overview, pending, recentUsers, activities } = data || {
+        overview: { totalUsers: 0, activeUsers: 0, activeInvestments: 0, totalInvested: 0, totalReturns: 0 },
+        pending: { kyc: 0, payments: 0, withdrawals: 0, tickets: 0 },
+        recentUsers: [],
+        activities: []
+    };
+
+    const recentActivity = activities.map(a => ({
+        id: a.id,
+        user: a.user,
+        email: a.email,
+        action: a.description || a.action.replace(/_/g, ' '),
+        amount: '—', // Activity log doesn't always have amount, maybe in metadata?
+        status: a.status === 'success' ? 'approved' : a.status === 'failure' ? 'rejected' : 'pending',
+        date: new Date(a.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        type: a.action
+    }));
+
+    const statsData = [
+        {
+            title: "Total Users",
+            value: overview.totalUsers.toLocaleString(),
+            description: `${overview.activeUsers} active platform users`,
+            trend: null,
+            trendUp: true,
+            icon: Users,
+            iconBg: "bg-blue-50",
+            iconColor: "text-blue-600",
+        },
+        {
+            title: "Total Investments",
+            value: `₹${(overview.totalInvested || 0).toLocaleString()}`,
+            description: `${overview.activeInvestments} active investments`,
+            trend: null,
+            trendUp: true,
+            icon: TrendingUp,
+            iconBg: "bg-green-50",
+            iconColor: "text-green-600",
+        },
+        {
+            title: "Pending Approvals",
+            value: (pending.kyc + pending.payments + pending.withdrawals).toString(),
+            description: `${pending.kyc} KYC • ${pending.payments} Payments • ${pending.withdrawals} Withdrawals`,
+            trend: null,
+            trendUp: false,
+            icon: Clock,
+            iconBg: "bg-orange-50",
+            iconColor: "text-orange-600",
+        },
+        {
+            title: "Total Returns",
+            value: `₹${(overview.totalReturns || 0).toLocaleString()}`,
+            description: "Distributed to users (Life time)",
+            trend: null,
+            trendUp: true,
+            icon: DollarSign,
+            iconBg: "bg-purple-50",
+            iconColor: "text-purple-600",
+        },
+    ];
+
+    const pendingItems = [
+        { icon: FileCheck, iconColor: "text-orange-600", bgColor: "bg-orange-100", title: "KYC Pending", count: pending.kyc.toString(), href: "/admin/kyc" },
+        { icon: CreditCard, iconColor: "text-blue-600", bgColor: "bg-blue-100", title: "Payment Requests", count: pending.payments.toString(), href: "/admin/payments" },
+        { icon: Wallet, iconColor: "text-purple-600", bgColor: "bg-purple-100", title: "Withdrawals", count: pending.withdrawals.toString(), href: "/admin/withdrawals" },
+    ];
+
+    // Chart calculations
+    const points = "0,80 20,60 40,70 60,40 80,50 100,20"; // To be connected via historical API
+    const totalInvestmentValue = overview.totalInvested > 100000
+        ? `₹${(overview.totalInvested / 100000).toFixed(1)}L`
+        : `₹${(overview.totalInvested || 0).toLocaleString()}`;
+
+    const investmentDistribution = [
+        { name: "Live Investments", value: 100, color: "#2563eb", fill: "var(--color-tech)" },
+    ];
+
+    const userGrowthData = [
+        { month: "Prev", users: 0 },
+        { month: "Now", users: overview.totalUsers },
+    ];
 
     return (
         <div className="space-y-3 md:space-y-4 -mt-2">
@@ -299,11 +318,7 @@ export default function AdminDashboardPage() {
                             </div>
                         </div>
                         <div className="mt-6 flex flex-wrap items-center justify-center gap-3 md:gap-4 text-xs text-gray-500">
-                            <span>Total Users: <strong className="text-gray-900">1,547</strong></span>
-                            <span className="text-green-600 flex items-center gap-1">
-                                <ArrowUpRight className="w-3 h-3" />
-                                +12% this month
-                            </span>
+                            +100% since launch
                         </div>
                     </CardContent>
                 </Card>
@@ -518,10 +533,9 @@ export default function AdminDashboardPage() {
 
                     {/* Pagination */}
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 md:px-5 py-4 border-t border-gray-100">
-                        <p className="text-sm text-gray-500">Showing 6 of 156 activities</p>
+                        <p className="text-sm text-gray-500">Recent events from activity log</p>
                         <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" disabled>Previous</Button>
-                            <Button variant="outline" size="sm">Next</Button>
+                            <Button variant="outline" size="sm" onClick={() => refetch()}><RefreshCw className="w-3.5 h-3.5 mr-2" />Refresh</Button>
                         </div>
                     </div>
                 </CardContent>

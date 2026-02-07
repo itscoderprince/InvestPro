@@ -33,6 +33,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuthStore } from "@/store/authStore";
 
 const mobileNavItems = [
     { name: "Home", href: "/dashboard", icon: Home, color: "text-blue-500", bg: "bg-blue-50", active: "bg-blue-600 shadow-blue-500/30" },
@@ -44,12 +45,14 @@ const mobileNavItems = [
 
 export default function UserLayout({ children }) {
     const pathname = usePathname();
+    const { user, logout, refreshUser } = useAuthStore();
     const [notificationCount] = useState(3);
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         setMounted(true);
-    }, []);
+        refreshUser().catch(console.error);
+    }, [refreshUser]);
 
     return (
         <SidebarProvider>
@@ -96,20 +99,20 @@ export default function UserLayout({ children }) {
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <button className="flex items-center gap-2 p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                                        <div className="w-8 h-8 bg-gradient-to-br from-[#2563eb] to-[#7c3aed] rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                                            JD
+                                        <div className="w-8 h-8 bg-gradient-to-br from-[#2563eb] to-[#7c3aed] rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm uppercase">
+                                            {user?.name?.charAt(0) || "U"}
                                         </div>
                                         <div className="hidden sm:flex flex-col items-start leading-none gap-0.5">
-                                            <span className="text-xs font-bold text-gray-900">John Doe</span>
-                                            <span className="text-[10px] text-green-600 font-medium">Verified</span>
+                                            <span className="text-xs font-bold text-gray-900">{user?.name || "User"}</span>
+                                            <span className="text-[10px] text-green-600 font-medium capitalize prose-sm">{user?.kycStatus || "Not Verified"}</span>
                                         </div>
                                         <ChevronDown className="w-4 h-4 text-gray-400" />
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-56 mt-1 overflow-hidden rounded-xl border-gray-200 shadow-xl">
                                     <div className="px-3 py-3 bg-gray-50/50 border-b border-gray-100">
-                                        <p className="text-sm font-bold text-gray-900">John Doe</p>
-                                        <p className="text-[10px] text-gray-500 truncate font-medium">john.doe@example.com</p>
+                                        <p className="text-sm font-bold text-gray-900">{user?.name}</p>
+                                        <p className="text-[10px] text-gray-500 truncate font-medium">{user?.email}</p>
                                     </div>
                                     <div className="p-1.5">
                                         <DropdownMenuItem asChild className="rounded-lg">
@@ -125,7 +128,10 @@ export default function UserLayout({ children }) {
                                             </Link>
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator className="bg-gray-100" />
-                                        <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer rounded-lg flex items-center font-bold">
+                                        <DropdownMenuItem
+                                            onClick={logout}
+                                            className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer rounded-lg flex items-center font-bold"
+                                        >
                                             <LogOut className="mr-2 w-4 h-4" />
                                             Sign out
                                         </DropdownMenuItem>

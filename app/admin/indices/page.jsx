@@ -52,15 +52,7 @@ import {
     TooltipContent,
 } from "@/components/ui/tooltip";
 
-// Sample Indices data
-const indicesData = [
-    { id: "IDX-001", name: "Blue Chip Index", category: "Stocks", minInvest: "₹5,000", returns: "12-15%", status: "active", volatility: "Low", lastUpdate: "2 mins ago" },
-    { id: "IDX-002", name: "Tech Growth Fund", category: "Technology", minInvest: "₹10,000", returns: "18-22%", status: "active", volatility: "High", lastUpdate: "1 hour ago" },
-    { id: "IDX-003", name: "Conservative Bonds", category: "Fixed Income", minInvest: "₹1,000", returns: "6-8%", status: "active", volatility: "Very Low", lastUpdate: "5 hours ago" },
-    { id: "IDX-004", name: "Global Equity", category: "International", minInvest: "₹25,000", returns: "10-14%", status: "inactive", volatility: "Medium", lastUpdate: "1 day ago" },
-    { id: "IDX-005", name: "High Yield Index", category: "Mixed", minInvest: "₹5,000", returns: "14-18%", status: "active", volatility: "Medium", lastUpdate: "3 hours ago" },
-    { id: "IDX-006", name: "Emerging Markets", category: "Regional", minInvest: "₹15,000", returns: "20-25%", status: "active", volatility: "Very High", lastUpdate: "30 mins ago" },
-];
+
 
 function StatusBadge({ status }) {
     if (status === "active") {
@@ -94,17 +86,31 @@ function VolatilityBadge({ level }) {
     );
 }
 
+import { useAdminIndices } from "@/hooks/useApi";
+
 export default function IndicesManagementPage() {
     const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const perPage = 10;
+
+    const { indices: apiIndices, pagination, loading, error, refetch } = useAdminIndices({
+        page: currentPage,
+        limit: perPage,
+        search: searchQuery
+    });
+
     const [selectedIdx, setSelectedIdx] = useState(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
 
     const stats = [
-        { title: "Active Indices", value: "12", icon: Database, color: "text-white", bg: "bg-blue-600" },
-        { title: "Average ROI", value: "14.2%", icon: TrendingUp, color: "text-white", bg: "bg-green-600" },
-        { title: "Asset Classes", value: "6", icon: Layers, color: "text-white", bg: "bg-purple-600" },
-        { title: "System Alerts", value: "0", icon: Activity, color: "text-white", bg: "bg-red-600" },
+        { title: "Active Indices", value: pagination?.total || 0, icon: Database, color: "text-white", bg: "bg-blue-600" },
+        { title: "Avg Return", value: apiIndices.length ? `${(apiIndices.reduce((acc, curr) => acc + curr.currentReturnRate, 0) / apiIndices.length).toFixed(1)}%` : "—", icon: TrendingUp, color: "text-white", bg: "bg-green-600" },
+        { title: "Asset Classes", value: [...new Set(apiIndices.map(i => i.category))].length || 0, icon: Layers, color: "text-white", bg: "bg-purple-600" },
+        { title: "Visible", value: apiIndices.filter(i => i.isActive).length, icon: Activity, color: "text-white", bg: "bg-red-600" },
     ];
+
+    const indicesData = apiIndices || [];
+    const totalPages = pagination?.pages || 1;
 
     const handleViewDetails = (idx) => {
         setSelectedIdx(idx);
@@ -176,7 +182,7 @@ export default function IndicesManagementPage() {
                                     <TableHead className="text-xs font-bold text-gray-500 uppercase">Min Invest</TableHead>
                                     <TableHead className="text-xs font-bold text-gray-500 uppercase">Est. Returns</TableHead>
                                     <TableHead className="text-xs font-bold text-gray-500 uppercase">Volatility</TableHead>
-                                    <TableHead className="text-xs font-bold text-gray-500 uppercase">Status</TableHead>
+                                    <TableHead className="text-xs font-bold text-gray-500 uppercase">Active?</TableHead>
                                     <TableHead className="text-right px-6 text-xs font-bold text-gray-500 uppercase">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -186,24 +192,24 @@ export default function IndicesManagementPage() {
                                         <TableCell className="px-6">
                                             <div className="min-w-0">
                                                 <p className="text-xs font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{idx.name}</p>
-                                                <p className="text-[10px] text-gray-400 font-mono">{idx.id}</p>
+                                                <p className="text-[10px] text-gray-400 font-mono">{idx.slug}</p>
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <span className="text-[11px] font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">{idx.category}</span>
+                                            <span className="text-[11px] font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full capitalize">{idx.category}</span>
                                         </TableCell>
-                                        <TableCell className="text-xs font-black text-gray-900">{idx.minInvest}</TableCell>
+                                        <TableCell className="text-xs font-black text-gray-900">{idx.minInvestmentFormatted || `₹${idx.minInvestment.toLocaleString()}`}</TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-1.5 text-green-600">
                                                 <TrendingUp className="w-3 h-3" />
-                                                <span className="text-[11px] font-black">{idx.returns}</span>
+                                                <span className="text-[11px] font-black">{idx.currentReturnRate}%</span>
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <VolatilityBadge level={idx.volatility} />
+                                            <VolatilityBadge level={idx.riskLevel} />
                                         </TableCell>
                                         <TableCell>
-                                            <StatusBadge status={idx.status} />
+                                            <StatusBadge status={idx.isActive ? 'active' : 'inactive'} />
                                         </TableCell>
                                         <TableCell className="text-right px-6">
                                             <div className="flex items-center justify-end gap-1">
@@ -219,14 +225,6 @@ export default function IndicesManagementPage() {
                                                         </Button>
                                                     </TooltipTrigger>
                                                     <TooltipContent className="text-[10px]">Edit Config</TooltipContent>
-                                                </Tooltip>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:bg-red-50">
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent className="text-[10px]">Delete Index</TooltipContent>
                                                 </Tooltip>
                                             </div>
                                         </TableCell>
@@ -279,7 +277,7 @@ export default function IndicesManagementPage() {
                     {/* Pagination */}
                     <CardFooter className="bg-white border-t px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <p className="text-[11px] text-gray-500 font-medium">
-                            Total <span className="text-gray-900 font-bold">{indicesData.length}</span> index configurations
+                            Total <span className="text-gray-900 font-bold">{pagination?.total || indicesData.length}</span> index configurations
                         </p>
                         <div className="flex items-center gap-1">
                             <Button variant="outline" size="sm" className="h-8 px-2 text-[11px] font-bold" disabled>
@@ -323,19 +321,19 @@ export default function IndicesManagementPage() {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="p-4 rounded-2xl bg-white border border-gray-100 shadow-sm">
                                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Asset Class</p>
-                                            <p className="text-sm font-black text-gray-900">{selectedIdx.category}</p>
+                                            <p className="text-sm font-black text-gray-900 capitalize">{selectedIdx.category}</p>
                                         </div>
                                         <div className="p-4 rounded-2xl bg-white border border-gray-100 shadow-sm transition-all hover:border-blue-100 group">
                                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Volatility</p>
-                                            <VolatilityBadge level={selectedIdx.volatility} />
+                                            <VolatilityBadge level={selectedIdx.riskLevel} />
                                         </div>
                                         <div className="p-4 rounded-2xl bg-white border border-gray-100 shadow-sm">
                                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Entry Barrier</p>
-                                            <p className="text-sm font-black text-blue-600">{selectedIdx.minInvest}</p>
+                                            <p className="text-sm font-black text-blue-600">{selectedIdx.minInvestmentFormatted || `₹${selectedIdx.minInvestment.toLocaleString()}`}</p>
                                         </div>
                                         <div className="p-4 rounded-2xl bg-white border border-gray-100 shadow-sm">
                                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Target Yield</p>
-                                            <p className="text-sm font-black text-green-600">{selectedIdx.returns}</p>
+                                            <p className="text-sm font-black text-green-600">{selectedIdx.currentReturnRate}%</p>
                                         </div>
                                     </div>
                                 </div>
@@ -352,8 +350,8 @@ export default function IndicesManagementPage() {
                                                 <p className="text-xs font-black text-gray-900">Market Visibility</p>
                                                 <p className="text-[10px] text-gray-500 font-medium mt-0.5">Allow users to discover and invest</p>
                                             </div>
-                                            <Button variant={selectedIdx.status === 'active' ? 'default' : 'outline'} size="sm" className={`h-8 px-4 rounded-full text-[10px] font-black ${selectedIdx.status === 'active' ? 'bg-green-600 hover:bg-green-700' : ''}`}>
-                                                {selectedIdx.status === 'active' ? 'ENABLED' : 'DISABLED'}
+                                            <Button variant={selectedIdx.isActive ? 'default' : 'outline'} size="sm" className={`h-8 px-4 rounded-full text-[10px] font-black ${selectedIdx.isActive ? 'bg-green-600 hover:bg-green-700' : ''}`}>
+                                                {selectedIdx.isActive ? 'ENABLED' : 'DISABLED'}
                                             </Button>
                                         </div>
                                         <div className="h-px bg-gray-50" />
@@ -377,10 +375,10 @@ export default function IndicesManagementPage() {
                                     <div className="relative z-10 space-y-3">
                                         <div className="flex items-center justify-between">
                                             <Badge className="bg-white/20 hover:bg-white/20 border-none text-[8px] font-black tracking-[0.2em]">RISK ADVISORY</Badge>
-                                            <span className="text-[9px] font-bold opacity-60">ID: ALPHA-002</span>
+                                            <span className="text-[9px] font-bold opacity-60">ID: {selectedIdx.slug}</span>
                                         </div>
                                         <p className="text-xs font-medium leading-relaxed opacity-80">
-                                            Current market volatility in <strong>{selectedIdx.category}</strong> is within optimized limits for the requested <strong>{selectedIdx.returns}</strong> return yield.
+                                            Current market volatility in <strong>{selectedIdx.category}</strong> is within optimized limits for the requested <strong>{selectedIdx.currentReturnRate}%</strong> return yield.
                                         </p>
                                         <Button variant="ghost" className="w-full text-white bg-white/10 hover:bg-white/20 text-[10px] font-black h-9 rounded-xl">
                                             View Real-time Analytics

@@ -19,6 +19,7 @@ import {
     ArrowLeft,
     Plus,
     Home,
+    Loader2,
 } from "lucide-react";
 
 import {
@@ -50,62 +51,44 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { useWithdrawals, useAvailableBalance } from "@/hooks/useApi";
+import { withdrawalsApi } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 
-// Sample data
-const availableBalance = 15420;
 const minWithdrawal = 500;
 
-const withdrawalReasons = [
-    { value: "personal", label: "Personal use" },
-    { value: "reinvestment", label: "Reinvestment elsewhere" },
-    { value: "emergency", label: "Emergency" },
-    { value: "other", label: "Other" },
-];
-
-const recentWithdrawals = [
-    { id: "WD-2024-001", amount: 5000, date: "28 Jan 2024", status: "approved" },
-    { id: "WD-2024-002", amount: 3000, date: "25 Jan 2024", status: "approved" },
-    { id: "WD-2024-003", amount: 2500, date: "20 Jan 2024", status: "pending" },
-    { id: "WD-2024-004", amount: 1500, date: "15 Jan 2024", status: "rejected" },
-];
-
-const savedBankDetails = {
-    accountHolder: "John Doe",
-    accountNumber: "****5678",
-    ifsc: "SBIN0001234",
-    bankName: "State Bank of India",
-};
-
 export default function WithdrawPage() {
-    const [mounted, setMounted] = useState(false);
+    const { user, kycStatus, refreshUser } = useAuthStore();
+    const { balance, loading: balanceLoading, refetch: refetchBalance } = useAvailableBalance();
+    const { withdrawals, loading: withdrawalsLoading, refetch: refetchWithdrawals } = useWithdrawals();
+
     const [amount, setAmount] = useState("");
-    const [reason, setReason] = useState("");
     const [useSavedBank, setUseSavedBank] = useState(true);
     const [bankDetails, setBankDetails] = useState({
         accountHolder: "",
         accountNumber: "",
-        ifsc: "",
+        ifscCode: "",
         bankName: "",
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const [requestId, setRequestId] = useState("");
+    const [error, setError] = useState(null);
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+    const availableBalance = balance || 0;
+    const savedBankDetails = user?.bankDetails || null;
 
     const parsedAmount = parseInt(amount.replace(/,/g, "")) || 0;
     const isValidAmount = parsedAmount >= minWithdrawal && parsedAmount <= availableBalance;
 
-    const hasBankDetails = useSavedBank || (
+    const hasBankDetails = useSavedBank && savedBankDetails ? true : (
         bankDetails.accountHolder.trim() &&
         bankDetails.accountNumber.trim() &&
-        bankDetails.ifsc.trim() &&
+        bankDetails.ifscCode.trim() &&
         bankDetails.bankName.trim()
     );
 
-    const canSubmit = isValidAmount && hasBankDetails && !isSubmitting;
+    const canSubmit = isValidAmount && hasBankDetails && !isSubmitting && kycStatus === 'approved';
 
     const handleAmountChange = (e) => {
         const value = e.target.value.replace(/[^0-9]/g, "");
@@ -127,13 +110,34 @@ export default function WithdrawPage() {
     const handleSubmit = async () => {
         if (!canSubmit) return;
         setIsSubmitting(true);
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        setRequestId(`WD-${Date.now().toString().slice(-8)}`);
-        setIsSubmitting(false);
-        setShowSuccess(true);
+        setError(null);
+
+        try {
+            const requestData = {
+                amount: parsedAmount,
+                bankDetails: useSavedBank && savedBankDetails ? savedBankDetails : bankDetails,
+            };
+
+            const result = await withdrawalsApi.createRequest(requestData);
+            setRequestId(result.withdrawal?._id || `WD-${Date.now().toString().slice(-8)}`);
+            setShowSuccess(true);
+            refetchBalance();
+            refetchWithdrawals();
+            await refreshUser();
+        } catch (err) {
+            setError(err.message || 'Failed to create withdrawal request');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
-    if (!mounted) return null;
+    if (balanceLoading) {
+        return (
+            <div className="min-h-[400px] flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
 
     if (showSuccess) {
         return (
@@ -172,6 +176,8 @@ export default function WithdrawPage() {
         );
     }
 
+    const recentWithdrawals = withdrawals.slice(0, 4);
+
     return (
         <div className="max-w-7xl mx-auto space-y-4 md:space-y-6 pt-0 pb-2 md:pb-4 px-2 md:px-1">
             {/* Compact Breadcrumb Header */}
@@ -194,6 +200,24 @@ export default function WithdrawPage() {
                     </BreadcrumbList>
                 </Breadcrumb>
             </div>
+
+            {/* KYC Warning */}
+            {kycStatus !== 'approved' && (
+                <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">
+                            <AlertCircle className="w-4 h-4 text-yellow-600" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-yellow-800 tracking-tight">KYC Required</p>
+                            <p className="text-[11px] text-yellow-700/80">Complete KYC verification to request withdrawals.</p>
+                        </div>
+                    </div>
+                    <Button asChild variant="ghost" size="sm" className="text-yellow-800 hover:bg-yellow-100 font-bold text-xs shrink-0">
+                        <Link href="/kyc">Complete Now</Link>
+                    </Button>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Left Column - Form */}
@@ -229,6 +253,13 @@ export default function WithdrawPage() {
                         </CardHeader>
 
                         <CardContent className="p-8 space-y-8">
+                            {/* Error message */}
+                            {error && (
+                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                                    {error}
+                                </div>
+                            )}
+
                             {/* Amount Input */}
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
@@ -257,22 +288,24 @@ export default function WithdrawPage() {
                                 <Label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Destination Account</Label>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div
-                                        onClick={() => setUseSavedBank(true)}
-                                        className={`p-5 rounded-2xl border-2 cursor-pointer transition-all relative overflow-hidden group ${useSavedBank ? 'border-blue-500 bg-blue-50/30 shadow-md' : 'border-gray-100 hover:border-gray-200'}`}
-                                    >
-                                        <div className="flex items-start justify-between relative z-10">
-                                            <div className="space-y-1">
-                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Primary Bank</p>
-                                                <p className="text-sm font-bold text-gray-900">{savedBankDetails.bankName}</p>
-                                                <p className="text-xs text-gray-500 font-medium">{savedBankDetails.accountNumber}</p>
+                                    {savedBankDetails && (
+                                        <div
+                                            onClick={() => setUseSavedBank(true)}
+                                            className={`p-5 rounded-2xl border-2 cursor-pointer transition-all relative overflow-hidden group ${useSavedBank ? 'border-blue-500 bg-blue-50/30 shadow-md' : 'border-gray-100 hover:border-gray-200'}`}
+                                        >
+                                            <div className="flex items-start justify-between relative z-10">
+                                                <div className="space-y-1">
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Primary Bank</p>
+                                                    <p className="text-sm font-bold text-gray-900">{savedBankDetails.bankName}</p>
+                                                    <p className="text-xs text-gray-500 font-medium">****{savedBankDetails.accountNumber?.slice(-4)}</p>
+                                                </div>
+                                                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${useSavedBank ? 'border-blue-600 bg-blue-600' : 'border-gray-200'}`}>
+                                                    {useSavedBank && <CheckCircle className="w-4 h-4 text-white" />}
+                                                </div>
                                             </div>
-                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${useSavedBank ? 'border-blue-600 bg-blue-600' : 'border-gray-200'}`}>
-                                                {useSavedBank && <CheckCircle className="w-4 h-4 text-white" />}
-                                            </div>
+                                            <Building2 className={`absolute -bottom-4 -right-4 w-12 h-12 transition-all ${useSavedBank ? 'text-blue-100' : 'text-gray-50'}`} />
                                         </div>
-                                        <Building2 className={`absolute -bottom-4 -right-4 w-12 h-12 transition-all ${useSavedBank ? 'text-blue-100' : 'text-gray-50'}`} />
-                                    </div>
+                                    )}
 
                                     <div
                                         onClick={() => setUseSavedBank(false)}
@@ -294,7 +327,7 @@ export default function WithdrawPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 animate-in slide-in-from-top-2 duration-300">
                                         <Input placeholder="Holder Name" value={bankDetails.accountHolder} onChange={(e) => handleBankDetailChange("accountHolder", e.target.value)} className="h-11 rounded-xl" />
                                         <Input placeholder="Account Number" value={bankDetails.accountNumber} onChange={(e) => handleBankDetailChange("accountNumber", e.target.value)} className="h-11 rounded-xl" />
-                                        <Input placeholder="IFSC Code" value={bankDetails.ifsc} onChange={(e) => handleBankDetailChange("ifsc", e.target.value.toUpperCase())} className="h-11 rounded-xl" />
+                                        <Input placeholder="IFSC Code" value={bankDetails.ifscCode} onChange={(e) => handleBankDetailChange("ifscCode", e.target.value.toUpperCase())} className="h-11 rounded-xl" />
                                         <Input placeholder="Bank Name" value={bankDetails.bankName} onChange={(e) => handleBankDetailChange("bankName", e.target.value)} className="h-11 rounded-xl" />
                                     </div>
                                 )}
@@ -319,7 +352,7 @@ export default function WithdrawPage() {
                             >
                                 {isSubmitting ? (
                                     <span className="flex items-center gap-2">
-                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        <Loader2 className="w-5 h-5 animate-spin" />
                                         Processing Transfer...
                                     </span>
                                 ) : (
@@ -347,53 +380,44 @@ export default function WithdrawPage() {
                             </div>
                         </CardHeader>
                         <CardContent className="p-0">
-                            <div className="divide-y divide-gray-50">
-                                {recentWithdrawals.map((item, idx) => (
-                                    <div key={idx} className="p-5 flex items-center justify-between hover:bg-gray-50 transition-colors group">
-                                        <div className="flex items-center gap-4">
-                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${item.status === 'approved' ? 'bg-green-50 text-green-600 border-green-100' :
-                                                item.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                                                    'bg-red-50 text-red-600 border-red-100'
-                                                }`}>
-                                                {item.status === 'approved' ? <ArrowDownRight className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
+                            {withdrawalsLoading ? (
+                                <div className="p-8 text-center">
+                                    <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto" />
+                                </div>
+                            ) : recentWithdrawals.length === 0 ? (
+                                <div className="p-8 text-center text-gray-500 text-sm">No withdrawal history yet</div>
+                            ) : (
+                                <div className="divide-y divide-gray-50">
+                                    {recentWithdrawals.map((item) => (
+                                        <div key={item.id} className="p-5 flex items-center justify-between hover:bg-gray-50 transition-colors group">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${item.status === 'approved' ? 'bg-green-50 text-green-600 border-green-100' :
+                                                    item.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                                                        'bg-red-50 text-red-600 border-red-100'
+                                                    }`}>
+                                                    {item.status === 'approved' ? <ArrowDownRight className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-black text-gray-900 leading-tight">₹{(item.amount || 0).toLocaleString()}</p>
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter mt-1">
+                                                        {new Date(item.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="text-sm font-black text-gray-900 leading-tight">₹{item.amount.toLocaleString()}</p>
-                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter mt-1">{item.date} • {item.id}</p>
-                                            </div>
+                                            <Badge
+                                                variant="secondary"
+                                                className={`font-black text-[9px] uppercase tracking-tighter px-2 h-5 flex items-center justify-center rounded-md ${item.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                                    item.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                                        'bg-red-100 text-red-700'
+                                                    }`}
+                                            >
+                                                {item.status}
+                                            </Badge>
                                         </div>
-                                        <Badge
-                                            variant="secondary"
-                                            className={`font-black text-[9px] uppercase tracking-tighter px-2 h-5 flex items-center justify-center rounded-md ${item.status === 'approved' ? 'bg-green-100 text-green-700' :
-                                                item.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                                                    'bg-red-100 text-red-700'
-                                                }`}
-                                        >
-                                            {item.status}
-                                        </Badge>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            )}
                         </CardContent>
-                    </Card>
-
-                    {/* Summary Card */}
-                    <Card className="border-none shadow-sm bg-blue-600 text-white overflow-hidden p-6 relative">
-                        <div className="relative z-10 grid grid-cols-2 gap-6">
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">Monthly Target</p>
-                                <p className="text-xl font-black">₹25,000</p>
-                            </div>
-                            <div className="space-y-1 text-right">
-                                <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">Reached</p>
-                                <p className="text-xl font-black">₹{recentWithdrawals.filter(w => w.status === 'approved').reduce((acc, curr) => acc + curr.amount, 0).toLocaleString()}</p>
-                            </div>
-                        </div>
-                        <div className="relative z-10 mt-6 h-1 w-full bg-white/20 rounded-full overflow-hidden">
-                            <div className="h-full bg-white rounded-full w-[32%]" />
-                        </div>
-                        {/* Background blobs */}
-                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 blur-[50px] rounded-full translate-y-1/2 -translate-x-1/2" />
                     </Card>
 
                     {/* Quick FAQ / Info */}

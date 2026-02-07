@@ -18,6 +18,7 @@ import {
     LogOut,
     ChevronRight,
     ChevronsUpDown,
+    AlertCircle,
 } from "lucide-react"
 
 import {
@@ -38,6 +39,9 @@ import {
     SidebarRail,
 } from "@/components/ui/sidebar"
 import {
+    useAdminDashboard
+} from "@/hooks/useApi"
+import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -50,81 +54,87 @@ import {
     CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 
-// Navigation data
-const navData = {
-    main: [
-        {
-            title: "Dashboard",
-            url: "/admin/dashboard",
-            icon: LayoutDashboard
-        },
-        {
-            title: "Users",
-            url: "/admin/users",
-            icon: Users
-        },
-    ],
-    requests: [
-        {
-            title: "KYC Requests",
-            url: "/admin/kyc",
-            icon: FileCheck,
-            badge: "8",
-            badgeColor: "bg-orange-500"
-        },
-        {
-            title: "Payment Requests",
-            url: "/admin/payments",
-            icon: CreditCard,
-            badge: "10",
-            badgeColor: "bg-blue-500"
-        },
-        {
-            title: "Withdrawals",
-            url: "/admin/withdrawals",
-            icon: Wallet,
-            badge: "5",
-            badgeColor: "bg-purple-500"
-        },
-    ],
-    investments: [
-        {
-            title: "Investments",
-            url: "/admin/investments",
-            icon: TrendingUp
-        },
-        {
-            title: "Indices",
-            url: "/admin/indices",
-            icon: Database
-        },
-        {
-            title: "Returns",
-            url: "/admin/returns",
-            icon: Calculator
-        },
-    ],
-    support: [
-        {
-            title: "Support Tickets",
-            url: "/admin/tickets",
-            icon: MessageSquare
-        },
-        {
-            title: "Settings",
-            url: "/admin/settings",
-            icon: Settings
-        },
-    ],
-}
 
 export function AdminSidebar({ ...props }) {
     const pathname = usePathname()
     const [mounted, setMounted] = React.useState(false)
+    const { data: dashboardData, loading: dashboardLoading } = useAdminDashboard()
 
     React.useEffect(() => {
         setMounted(true)
     }, [])
+
+    const pending = dashboardData?.pending || {}
+
+    // Navigation data
+    const navData = {
+        main: [
+            {
+                title: "Dashboard",
+                url: "/admin/dashboard",
+                icon: LayoutDashboard
+            },
+            {
+                title: "Users",
+                url: "/admin/users",
+                icon: Users
+            },
+        ],
+        requests: [
+            {
+                title: "KYC Requests",
+                url: "/admin/kyc",
+                icon: FileCheck,
+                badge: pending.kyc > 0 ? pending.kyc.toString() : null,
+                badgeColor: "bg-orange-600"
+            },
+            {
+                title: "Payment Requests",
+                url: "/admin/payments",
+                icon: CreditCard,
+                badge: pending.payments > 0 ? pending.payments.toString() : null,
+                badgeColor: "bg-blue-600"
+            },
+            {
+                title: "Withdrawals",
+                url: "/admin/withdrawals",
+                icon: Wallet,
+                badge: pending.withdrawals > 0 ? pending.withdrawals.toString() : null,
+                badgeColor: "bg-purple-600"
+            },
+        ],
+        investments: [
+            {
+                title: "Investments",
+                url: "/admin/investments",
+                icon: TrendingUp
+            },
+            {
+                title: "Indices",
+                url: "/admin/indices",
+                icon: Database
+            },
+            {
+                title: "Returns",
+                url: "/admin/returns",
+                icon: Calculator
+            },
+        ],
+        support: [
+            {
+                title: "Support Tickets",
+                url: "/admin/tickets",
+                icon: MessageSquare,
+                badge: pending.tickets > 0 ? pending.tickets.toString() : null,
+                badgeColor: "bg-slate-600"
+            },
+            {
+                title: "Settings",
+                url: "/admin/settings",
+                icon: Settings
+            },
+        ],
+    }
 
     return (
         <Sidebar collapsible="icon" className="bg-[#0f172a] border-r-0" {...props}>
@@ -271,6 +281,11 @@ export function AdminSidebar({ ...props }) {
                                                 <span>{item.title}</span>
                                             </Link>
                                         </SidebarMenuButton>
+                                        {item.badge && (
+                                            <SidebarMenuBadge className={`${item.badgeColor} text-white text-[10px] font-bold`}>
+                                                {item.badge}
+                                            </SidebarMenuBadge>
+                                        )}
                                     </SidebarMenuItem>
                                 )
                             })}
