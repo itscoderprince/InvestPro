@@ -1,143 +1,168 @@
 "use client";
 
-import { use } from "react";
+import React, { use, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
+import { useIndex } from "@/hooks/useApi";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Import all index-details components
 import IndexHero from "@/components/index-details/IndexHero";
 import PerformanceSection from "@/components/index-details/PerformanceSection";
-import AboutIndex from "@/components/index-details/AboutIndex";
-import HowItWorksIndex from "@/components/index-details/HowItWorksIndex";
-import ReturnsCalculator from "@/components/index-details/ReturnsCalculator";
-import RiskDisclosure from "@/components/index-details/RiskDisclosure";
-import InvestorReviews from "@/components/index-details/InvestorReviews";
 import IndexFAQ from "@/components/index-details/IndexFAQ";
 import SimilarIndices from "@/components/index-details/SimilarIndices";
+import RiskDisclosure from "@/components/index-details/RiskDisclosure";
 import IndexStickyBar from "@/components/index-details/IndexStickyBar";
-import { ChevronRight, Home, ChevronLeft, Share2, AlertTriangle, Info } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+import AboutIndex from "@/components/index-details/AboutIndex";
+import HowItWorksIndex from "@/components/index-details/HowItWorksIndex";
+import InvestorReviews from "@/components/index-details/InvestorReviews";
 
-const IndexDetailsPage = ({ params }) => {
+export default function IndexDetailPage({ params }) {
+    const router = useRouter();
     const resolvedParams = use(params);
     const { id } = resolvedParams;
-    const router = useRouter();
+    const { index, loading, error } = useIndex(id);
 
-    const handleInvestNavigate = () => {
+    const handleInvest = () => {
         router.push(`/indices/${id}/invest`);
     };
 
-    // Mock data for the index
-    const indexData = {
-        id: "tech-growth",
-        name: "Tech Growth Index",
-        category: "Technology",
-        tagline: "Invest in top-performing technology companies",
-        rating: 4.8,
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-white dark:bg-slate-950">
+                <Navbar />
+                <main className="container mx-auto max-w-7xl pt-32 px-4 pb-24">
+                    <Skeleton className="h-8 w-48 mb-8" />
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                        <div className="lg:col-span-2 space-y-8">
+                            <Skeleton className="h-24 w-full" />
+                            <Skeleton className="h-64 w-full" />
+                        </div>
+                        <div className="space-y-6">
+                            <Skeleton className="h-96 w-full" />
+                        </div>
+                    </div>
+                </main>
+                <Footer />
+            </div>
+        );
+    }
+
+    if (error || !index) {
+        return (
+            <div className="min-h-screen bg-white dark:bg-slate-950">
+                <Navbar />
+                <main className="container mx-auto max-w-7xl pt-48 px-4 text-center">
+                    <div className="max-w-md mx-auto">
+                        <div className="w-16 h-16 bg-red-50 dark:bg-red-900/10 rounded-full flex items-center justify-center text-red-600 mx-auto mb-6">
+                            <AlertCircle size={32} />
+                        </div>
+                        <h1 className="text-3xl font-black mb-4">Index Not Found</h1>
+                        <p className="text-slate-500 dark:text-slate-400 mb-8">
+                            The investment index you're looking for doesn't exist or has been moved.
+                        </p>
+                        <Button asChild className="bg-blue-600 hover:bg-blue-700 h-12 px-8 rounded-2xl font-black">
+                            <Link href="/">Return to Navigation</Link>
+                        </Button>
+                    </div>
+                </main>
+                <Footer />
+            </div>
+        );
+    }
+
+    // Transform API data for IndexHero component
+    const heroData = {
+        category: index.category || "Investment",
+        name: index.name,
+        tagline: index.description || "Premium investment opportunity with verified returns.",
+        rating: 4.5,
         reviews: 1234,
-        currentReturn: "4.5%",
+        currentReturn: `${index.currentReturnRate}%`,
         trend: "+0.3%",
-        minInvestment: "₹5,000",
-        totalInvestors: "1,234",
-        fundSize: "₹1.2 Crore",
+        minInvestment: `₹${index.minInvestment?.toLocaleString() || "5,000"}`,
+        totalInvestors: "12K+",
+        fundSize: "₹500Cr+"
     };
 
-    // Mock KYC status for demonstration
-    const kycStatus = "missing"; // Can be "missing", "pending", or "verified"
+    // Transform API data for InvestmentModal component
+    const modalIndexData = {
+        _id: index._id,
+        name: index.name,
+        category: index.category,
+        currentReturnRate: index.currentReturnRate,
+        minInvestment: index.minInvestment,
+        riskLevel: index.riskLevel
+    };
 
     return (
-        <div className="min-h-screen bg-[#f9fafb] dark:bg-slate-950 font-sans selection:bg-blue-100 selection:text-blue-900 selection:dark:bg-blue-900 selection:dark:text-blue-100">
+        <div className="min-h-screen bg-white dark:bg-slate-950 font-sans selection:bg-blue-100 selection:text-blue-900 selection:dark:bg-blue-900 selection:dark:text-blue-100">
             <Navbar />
 
-            <main className="pt-24 pb-12">
-                <div className="container mx-auto max-w-7xl px-4 md:px-6">
-                    {/* KYC Status Banners */}
-                    {kycStatus === "missing" && (
-                        <div className="mb-8 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                                    <AlertTriangle className="w-5 h-5 text-amber-600" />
-                                </div>
-                                <p className="text-sm font-bold text-amber-900 dark:text-amber-200 uppercase tracking-widest">
-                                    Complete account verification (KYC) to start investing.
-                                </p>
-                            </div>
-                            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-full font-black px-6">
-                                Verify Now
-                            </Button>
-                        </div>
-                    )}
-
-                    {kycStatus === "pending" && (
-                        <div className="mb-8 p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                                <Info className="w-5 h-5 text-blue-600" />
-                            </div>
-                            <p className="text-sm font-bold text-blue-900 dark:text-blue-200 uppercase tracking-widest">
-                                KYC under review. You can browse indices while we verify your details.
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Breadcrumb & Top Actions */}
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                            <Link href="/" className="hover:text-blue-600 transition-colors flex items-center gap-1">
-                                <Home className="w-4 h-4" />
-                                Dashboard
-                            </Link>
-                            <ChevronRight className="w-4 h-4" />
-                            <Link href="/investments" className="hover:text-blue-600 transition-colors">
-                                Investments
-                            </Link>
-                            <ChevronRight className="w-4 h-4" />
-                            <span className="font-bold text-slate-900 dark:text-white">
-                                {indexData.name}
-                            </span>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                            <Button variant="outline" size="sm" className="rounded-full flex items-center gap-2 pr-4 pl-3" asChild>
-                                <Link href="/investments">
-                                    <ChevronLeft className="w-4 h-4" />
-                                    Back
-                                </Link>
-                            </Button>
-                            <Button variant="outline" size="icon" className="rounded-full h-9 w-9">
-                                <Share2 className="w-4 h-4" />
-                            </Button>
-                        </div>
+            <main className="pt-32 pb-24 px-4 md:px-6">
+                <div className="container mx-auto max-w-7xl">
+                    {/* Back Link */}
+                    <div className="mb-12">
+                        <Link
+                            href="/#indices"
+                            className="inline-flex items-center gap-2 text-slate-400 hover:text-blue-600 font-bold text-xs uppercase tracking-widest transition-colors"
+                        >
+                            <ArrowLeft size={14} />
+                            All Investment Nodes
+                        </Link>
                     </div>
 
-                    {/* Page Sections */}
-                    <IndexHero data={indexData} onInvest={handleInvestNavigate} />
-                    <PerformanceSection />
+                    {/* Hero Section */}
+                    <div className="mb-20">
+                        <IndexHero data={heroData} onInvest={handleInvest} />
+                    </div>
 
-                    <div className="grid lg:grid-cols-12 gap-8 mt-8">
-                        <div className="lg:col-span-8 space-y-8">
-                            <AboutIndex />
+                    <div className="grid lg:grid-cols-3 gap-16">
+                        <div className="lg:col-span-2 space-y-20">
+                            {/* About Section */}
+                            <AboutIndex description={index.description} />
+
+                            {/* Performance Overview Section */}
+                            <PerformanceSection />
+
+                            {/* How it Works */}
                             <HowItWorksIndex />
-                            <InvestorReviews />
+
+                            {/* FAQ Section */}
                             <IndexFAQ />
-                        </div>
-                        <div className="lg:col-span-4 space-y-8">
-                            <ReturnsCalculator />
+
+                            {/* Risk Disclosure Section */}
                             <RiskDisclosure />
                         </div>
+
+                        <div className="space-y-12">
+                            {/* Multiplier/Calculator can go here if needed, but the user wanted clean UI */}
+                            {/* Similar Indices in Sidebar */}
+                            <div className="sticky top-32">
+                                <SimilarIndices />
+                            </div>
+                        </div>
                     </div>
 
-                    <SimilarIndices />
+                    {/* Full Width Sections */}
+                    <div className="mt-20 border-t border-slate-100 dark:border-white/5 pt-20">
+                        <InvestorReviews />
+                    </div>
                 </div>
             </main>
 
             <Footer />
+
+            {/* Sticky Bar */}
             <IndexStickyBar
-                name={indexData.name}
-                returns={indexData.currentReturn}
-                onInvest={handleInvestNavigate}
+                name={index.name}
+                returns={`${index.currentReturnRate}%`}
+                onInvest={handleInvest}
             />
         </div>
     );
-};
-
-export default IndexDetailsPage;
+}
