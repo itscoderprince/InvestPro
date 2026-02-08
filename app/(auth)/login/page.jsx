@@ -53,7 +53,7 @@ export default function LoginPage() {
       if (response.user.role === 'admin') {
         router.push('/admin/dashboard');
       } else {
-        router.push('/dashboard');
+        router.push('/');
       }
     } catch (err) {
       toast.error(err.message || "Login failed. Please try again.");

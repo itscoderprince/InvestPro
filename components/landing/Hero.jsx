@@ -16,156 +16,108 @@ import { Badge } from "@/components/ui/badge";
 
 const Hero = () => {
     return (
-        <section className="relative h-screen min-h-[700px] overflow-hidden bg-white dark:bg-slate-950 px-4 md:px-6 pt-20">
-            <div className="relative h-[calc(100vh-80px)] container mx-auto max-w-7xl flex flex-col justify-center py-12">
-                {/* Abstract Background */}
-                <div className="absolute inset-0 z-0 opacity-40 pointer-events-none">
-                    <div className="absolute h-full w-full bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#ffffff0a_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
-                </div>
+        <section className="relative min-h-[800px] flex items-center overflow-hidden bg-slate-50 dark:bg-slate-950 pt-20">
+            {/* Background Effects */}
+            <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-100/40 via-transparent to-transparent dark:from-blue-900/10 dark:via-transparent dark:to-transparent"></div>
+                <div className="absolute h-full w-full bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+                <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-blue-400 opacity-20 blur-[100px] dark:bg-blue-600"></div>
+            </div>
 
-                <div className="relative z-10 grid lg:grid-cols-12 gap-8 items-center w-full">
-                    {/* Left Content */}
-                    <div className="lg:col-span-6 flex flex-col justify-center text-center lg:text-left">
-                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-6 mx-auto lg:mx-0">
-                                <Shield className="w-3 h-3" />
-                                Institutional Integrity Protocol
-                            </div>
+            <div className="container mx-auto max-w-7xl px-4 md:px-6 relative z-10">
+                <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
+                    {/* Content */}
+                    <div className="max-w-3xl flex flex-col items-center lg:items-start text-center lg:text-left">
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 shadow-sm mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span className="text-xs font-bold tracking-wide text-slate-700 dark:text-slate-300">
+                                INSTITUTIONAL INTEGRITY PROTOCOL
+                            </span>
                         </div>
 
-                        <h1 className="text-4xl md:text-6xl xl:text-7xl font-black tracking-tight text-slate-900 dark:text-white leading-[1.05] mb-6 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-100">
-                            Private Wealth Tracking <br />
-                            <span className="text-gradient-primary">Audited & Immutable.</span>
+                        <h1 className="text-5xl md:text-7xl font-black tracking-tight text-slate-900 dark:text-white leading-[1.1] mb-6 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-100">
+                            Private Wealth <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500">
+                                Tracking & Audit.
+                            </span>
                         </h1>
 
-                        <p className="text-base md:text-lg text-slate-600 dark:text-slate-400 mb-8 max-w-xl mx-auto lg:mx-0 font-medium leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
-                            The premium terminal for professional investors to log
-                            bank-to-bank settlements and monitor offline asset growth without
-                            intermediaries.
+                        <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 mb-10 max-w-xl font-medium leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
+                            The premium terminal for professional investors to log bank-to-bank settlements and monitor asset growth without intermediaries.
                         </p>
 
-                        <div className="flex flex-wrap justify-center lg:justify-start gap-4 mb-8 animate-in fade-in slide-in-from-bottom-10 duration-700 delay-300">
+                        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto animate-in fade-in slide-in-from-bottom-10 duration-700 delay-300">
                             <Button
                                 asChild
                                 size="lg"
-                                className="bg-blue-600 hover:bg-blue-700 text-white font-black rounded-full px-8 h-14 shadow-xl shadow-blue-500/20 hover:scale-105 transition-all"
+                                className="h-14 px-8 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 text-base font-bold shadow-xl shadow-slate-900/10 dark:shadow-white/5 transition-all hover:scale-[1.02]"
                             >
-                                <Link href="/register">Initialize Access</Link>
-                            </Button>
-                            <Button
-                                asChild
-                                variant="ghost"
-                                size="lg"
-                                className="rounded-full px-8 h-14 font-bold border border-slate-200 dark:border-white/10 flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-white/5"
-                            >
-                                <Link href="#indices" className="group">
-                                    Explore Markets{" "}
-                                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                <Link href="/register">
+                                    Initialize Access
+                                    <ArrowRight className="ml-2 w-5 h-5" />
                                 </Link>
                             </Button>
+                            <Button
+                                asChild
+                                variant="outline"
+                                size="lg"
+                                className="h-14 px-8 rounded-2xl border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 text-base font-bold text-slate-700 dark:text-slate-200"
+                            >
+                                <Link href="#indices">Explore Markets</Link>
+                            </Button>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-8 animate-in fade-in duration-1000 delay-500">
-                            <div className="flex -space-x-3">
-                                {[1, 2, 3].map((i) => (
-                                    <div
-                                        key={i}
-                                        className="h-10 w-10 rounded-full border-2 border-white dark:border-slate-900 bg-slate-200 overflow-hidden relative shadow-sm"
-                                    >
-                                        <div className="flex items-center justify-center h-full w-full bg-blue-100 text-blue-600 font-bold text-xs">
-                                            U{i}
-                                        </div>
-                                    </div>
+                        <div className="mt-12 flex items-center gap-6 text-sm font-medium text-slate-500 dark:text-slate-500 animate-in fade-in duration-1000 delay-500">
+                            <div className="flex -space-x-2">
+                                {[1, 2, 3, 4].map((i) => (
+                                    <div key={i} className="h-8 w-8 rounded-full border-2 border-slate-50 dark:border-slate-950 bg-slate-200 dark:bg-slate-800"></div>
                                 ))}
                             </div>
-                            <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                                Trusted by{" "}
-                                <span className="font-bold text-slate-900 dark:text-white">
-                                    120k+
-                                </span>{" "}
-                                private investors
-                            </p>
-                        </div>
-
-                        {/* Stats Section Integrated */}
-                        <div className="flex flex-wrap justify-center lg:justify-start gap-8 pt-6 border-t border-slate-200 dark:border-white/5 animate-in fade-in duration-1000 delay-700">
-                            <div>
-                                <p className="text-2xl font-black text-slate-900 dark:text-white">
-                                    $12.5M+
-                                </p>
-                                <p className="text-[10px] uppercase font-bold text-slate-500 tracking-[0.2em] mt-1">
-                                    Capital
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-2xl font-black text-slate-900 dark:text-white">
-                                    4.8k
-                                </p>
-                                <p className="text-[10px] uppercase font-bold text-slate-500 tracking-[0.2em] mt-1">
-                                    Active Nodes
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-2xl font-black text-slate-900 dark:text-white">
-                                    99.9%
-                                </p>
-                                <p className="text-[10px] uppercase font-bold text-slate-500 tracking-[0.2em] mt-1">
-                                    Audit Rate
-                                </p>
-                            </div>
+                            <p>Trusted by <span className="text-slate-900 dark:text-white font-bold">120k+</span> investors</p>
                         </div>
                     </div>
 
-                    {/* Right Visual */}
-                    <div className="lg:col-span-6 relative hidden lg:block animate-in fade-in zoom-in duration-1000">
-                        <div className="relative z-10 p-4">
-                            <div className="relative aspect-square max-w-[500px] mx-auto rounded-[3rem] border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-xl p-12 shadow-2xl overflow-hidden flex items-center justify-center">
-                                {/* Abstract Visual Shape */}
-                                <div className="relative w-full h-full flex items-center justify-center">
-                                    <div className="w-80 h-80 bg-gradient-to-tr from-blue-600/20 to-cyan-500/20 rounded-full blur-[100px] animate-pulse"></div>
-                                    <div className="relative z-10 w-full h-full flex items-center justify-center">
-                                        <TrendingUp className="w-48 h-48 text-blue-600/20 absolute" />
-                                        <div className="w-full h-full rounded-2xl bg-white/40 dark:bg-white/5 border border-white/20 dark:border-white/10 shadow-inner flex items-center justify-center overflow-hidden">
-                                            <Activity className="w-24 h-24 text-blue-600 opacity-30" />
-                                        </div>
+                    {/* Visual */}
+                    <div className="relative hidden lg:block animate-in fade-in zoom-in duration-1000 delay-200">
+                        <div className="relative z-10 mx-auto w-full max-w-[500px] aspect-square">
+                            {/* Glassmorphism Card */}
+                            <div className="absolute inset-0 bg-gradient-to-tr from-white/80 to-white/40 dark:from-slate-900/80 dark:to-slate-900/40 backdrop-blur-2xl border border-white/50 dark:border-white/10 rounded-[3rem] shadow-2xl flex flex-col p-8 overflow-hidden">
+                                <div className="flex items-center justify-between mb-8">
+                                    <div>
+                                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total Balance</div>
+                                        <div className="text-3xl font-black text-slate-900 dark:text-white">$12,450,291.00</div>
+                                    </div>
+                                    <div className="h-10 w-10 rounded-xl bg-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+                                        <Activity className="w-5 h-5" />
                                     </div>
                                 </div>
 
-                                {/* Floating Badges */}
-                                <div className="absolute top-12 right-12 h-20 w-44 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-2xl z-20 backdrop-blur-md animate-bounce duration-[4000ms]">
-                                    <div className="flex items-center gap-2 text-emerald-500 mb-2">
-                                        <ShieldCheck className="w-4 h-4" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest">
-                                            SECURE SYNC
-                                        </span>
+                                {/* Fake Chart */}
+                                <div className="flex-1 w-full bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5 relative overflow-hidden group">
+                                    <div className="absolute inset-x-0 bottom-0 h-[60%] bg-gradient-to-t from-blue-500/10 to-transparent"></div>
+                                    <div className="absolute inset-0 flex items-end px-4 pb-4 gap-2">
+                                        {[40, 65, 45, 80, 55, 90, 75, 100].map((h, i) => (
+                                            <div key={i} className="flex-1 bg-blue-500 rounded-t-sm transition-all duration-500 group-hover:bg-blue-400" style={{ height: `${h}%`, opacity: 0.8 }}></div>
+                                        ))}
                                     </div>
-                                    <div className="h-1.5 w-full bg-emerald-500/10 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-emerald-500 transition-all duration-1000"
-                                            style={{ width: "88%" }}
-                                        ></div>
-                                    </div>
-                                    <p className="text-[9px] text-slate-500 mt-2 font-mono font-bold">
-                                        ID: SEC-NODE-88
-                                    </p>
                                 </div>
 
-                                <div className="absolute bottom-12 left-12 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl z-20 backdrop-blur-md">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
-                                            <Activity className="w-6 h-6" />
-                                        </div>
-                                        <div>
-                                            <p className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                                                Live Auditing
-                                            </p>
-                                            <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mt-0.5">
-                                                ACTIVE
-                                            </p>
-                                        </div>
+                                {/* Floating Badge */}
+                                <div className="absolute bottom-8 left-8 right-8 bg-white dark:bg-slate-800 rounded-xl p-4 shadow-lg border border-slate-100 dark:border-white/5 flex items-center gap-4">
+                                    <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                                        <ShieldCheck className="w-5 h-5" />
                                     </div>
+                                    <div>
+                                        <div className="text-xs font-bold text-slate-900 dark:text-white">Audit Verified</div>
+                                        <div className="text-[10px] text-slate-500">Last check: 2 mins ago</div>
+                                    </div>
+                                    <div className="ml-auto text-emerald-600 font-bold text-xs">100%</div>
                                 </div>
                             </div>
+
+                            {/* Decorative Blobs */}
+                            <div className="absolute -top-12 -right-12 h-64 w-64 bg-blue-500/30 rounded-full blur-3xl -z-10 animate-pulse"></div>
+                            <div className="absolute -bottom-12 -left-12 h-64 w-64 bg-indigo-500/30 rounded-full blur-3xl -z-10 animate-pulse delay-700"></div>
                         </div>
                     </div>
                 </div>
