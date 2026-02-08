@@ -4,6 +4,9 @@ import PaymentRequest from '@/models/PaymentRequest';
 import { requireAdmin } from '@/lib/middleware/auth';
 import { successResponse, errorResponse, notFoundResponse } from '@/lib/response';
 import { sendPaymentApprovedEmail } from '@/lib/email';
+
+// Force dynamic to prevent caching
+export const dynamic = 'force-dynamic';
 import ActivityLog from '@/models/ActivityLog';
 
 // PUT/POST - Approve Payment

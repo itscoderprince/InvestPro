@@ -456,7 +456,11 @@ export default function PaymentManagementPage() {
                                     </h3>
                                     {selectedPayment.paymentProof ? (
                                         <div className="aspect-video w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center gap-2 group hover:border-blue-300 transition-colors overflow-hidden">
-                                            <img src={`${process.env.NEXT_PUBLIC_APP_URL || ''}${selectedPayment.paymentProof}`} alt="Proof" className="w-full h-full object-contain" />
+                                            <img
+                                                src={selectedPayment.paymentProof.startsWith('http') ? selectedPayment.paymentProof : `${process.env.NEXT_PUBLIC_APP_URL || ''}${selectedPayment.paymentProof}`}
+                                                alt="Proof"
+                                                className="w-full h-full object-contain"
+                                            />
                                         </div>
                                     ) : (
                                         <div className="aspect-video w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center gap-2 text-gray-400">

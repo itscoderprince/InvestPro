@@ -35,7 +35,7 @@ const indexSchema = new mongoose.Schema(
             type: Number,
             default: 4,
             min: [3, 'Minimum return rate is 3%'],
-            max: [5, 'Maximum return rate is 5%']
+            max: [100, 'Maximum return rate is 100%']
         },
         category: {
             type: String,
@@ -150,6 +150,13 @@ indexSchema.methods.updateStats = async function () {
         this.totalInvested = stats[0].totalInvested;
         this.totalReturnsDistributed = stats[0].totalReturns;
         this.activeInvestors = stats[0].count;
+
+        // precise calculation for return rate (avoid division by zero)
+        if (this.totalInvested > 0) {
+            const calculatedRate = (this.totalReturnsDistributed / this.totalInvested) * 100;
+            // Ensure it's at least the minimum relative to the risk
+            this.currentReturnRate = Math.max(calculatedRate, 3);
+        }
     } else {
         this.totalInvested = 0;
         this.totalReturnsDistributed = 0;
